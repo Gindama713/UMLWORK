@@ -1,0 +1,7 @@
+-- 仅创建独立 schema；建表与演示数据待业务规则和领域模型确认。
+-- 用有 CREATE DATABASE 权限的 MySQL 账户执行。
+CREATE DATABASE IF NOT EXISTS parking_space CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS parking_access CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS parking_billing CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS parking_pass CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE DATABASE IF NOT EXISTS parking_analytics CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;

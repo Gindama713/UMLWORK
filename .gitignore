@@ -1,0 +1,24 @@
+# Java / Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+.mvn/offline-settings.xml
+
+# Node / Vite
+node_modules/
+dist/
+frontend/.npm-cache/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local settings and secrets
+.env
+.env.local
+application-local.yml
+*.log
+
+# Reports and generated screenshots are added deliberately when verified.

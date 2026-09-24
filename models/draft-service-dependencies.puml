@@ -1,0 +1,28 @@
+@startuml
+title 服务依赖草图（AI-辅助，待审核）
+skinparam componentStyle rectangle
+actor 车主
+actor 管理员
+component "Gateway" as gateway
+component "space-service" as space
+component "access-service" as access
+component "billing-service" as billing
+component "pass-service" as pass
+component "analytics-service" as analytics
+
+车主 --> gateway
+管理员 --> gateway
+gateway --> space
+gateway --> access
+gateway --> billing
+gateway --> pass
+gateway --> analytics
+access --> space : 占用/释放车位\n充电明细
+access --> pass : 预约/月卡资格
+access --> billing : 出账/支付结果
+pass --> space : 预约资源校验
+pass --> billing : 预付结果
+analytics ..> access : 只读统计数据/事件
+analytics ..> space : 只读统计数据/事件
+analytics ..> billing : 只读统计数据/事件
+@enduml

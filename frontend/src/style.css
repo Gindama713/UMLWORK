@@ -1,0 +1,16 @@
+:root {
+  font-family: Inter, "Microsoft YaHei", sans-serif;
+  color: #1f2a37;
+  background: #f3f6fa;
+}
+
+body { margin: 0; }
+.page { max-width: 1120px; margin: 0 auto; padding: 48px 24px 64px; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+.eyebrow { color: #3863a4; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+h1 { margin: 10px 0 12px; font-size: clamp(26px, 4vw, 38px); }
+.subtitle { margin: 0; color: #596579; line-height: 1.7; }
+.service-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.service-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+code { color: #53657b; font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .page-header { align-items: flex-start; flex-direction: column; } }
