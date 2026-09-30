@@ -15,6 +15,9 @@ frontend/.npm-cache/
 .DS_Store
 Thumbs.db
 
+# Local agent workspace data (not a cache, but not part of the deliverable)
+.workbuddy-ai/
+
 # Local settings and secrets
 .env
 .env.local
