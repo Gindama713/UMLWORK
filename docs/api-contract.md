@@ -1,68 +1,80 @@
-# 服务接口契约草案 v0.1
+# 服务接口契约 v1（【AI-辅助】）
 
-> 【AI-辅助】**未冻结、尚未实现。**本文件是多 agent 开发前的讨论稿。姜苏豪确认 `docs/decisions.md` 后，接口负责人再填写精确路径、DTO 约束、错误码、幂等行为与示例，并升为 v1。当前服务骨架只实现第 1 节的状态接口。
+2026-09-25 实施基线。业务规则见 [decisions.md](decisions.md)。本文件约束服务之间交换的字段和语义；一个服务不能直接读取另一个服务的表。增减字段前由集成负责人修改本文件，并同步用例、模型和调用方。
 
-## 1. 已实现的骨架状态接口
+## 通用格式
 
-| 经网关访问的接口 | 提供服务 | 本地直连端口 |
-|---|---|---|
-| `GET /api/v1/spaces/status` | space-service | 18081 |
-| `GET /api/v1/access/status` | access-service | 18082 |
-| `GET /api/v1/billing/status` | billing-service | 18083 |
-| `GET /api/v1/passes/status` | pass-service | 18084 |
-| `GET /api/v1/analytics/status` | analytics-service | 18085 |
+- UTF-8 JSON。外部路径以 /api/v1 开头，服务间路径以 /internal/v1 开头。状态接口仍保留。
+- 所有响应为 {code:string,message:string,data:object|array|null,requestId:string}；成功 code=OK。非 2xx 也遵守此格式。
+- ID 为 UUID 字符串；车牌去除两端空白、规范化大写，统一接受 5～12 位汉字/字母/数字；金额用 long 整数分；电量用十进制数 kWh；时间为 ISO 8601 带偏移量字符串，数据库时刻精度为微秒，计费自然日按 Asia/Shanghai。
+- 创建、支付、占用、释放均携带 Idempotency-Key。相同键和请求重试返回原业务结果；同键不同请求返回 IDEMPOTENCY_CONFLICT。access 的出场重试返回当前恢复状态（例如已付待释放恢复为 CLOSED），不会再次扣费。停车记录 ID 和账单的 parkingSessionId 唯一约束作为第二道防线。
+- 服务内部也返回响应包，不传 JPA/JDBC 实体。各服务只声明自己消费的 DTO，不建跨服务数据库实体共享包。
+- HTTP 400 INVALID_ARGUMENT，404 NOT_FOUND，409 ACTIVE_SESSION_EXISTS / SPACE_UNAVAILABLE / RESERVATION_CONFLICT / STATE_CONFLICT / BILL_ALREADY_PAID / IDEMPOTENCY_CONFLICT，503 DEPENDENCY_UNAVAILABLE。错误 data=null。
 
-成功响应示例：
+## UC-01 / UC-02 / UC-07：车位与入场
 
-```json
-{
-  "code": "OK",
-  "message": "service ready",
-  "data": {"service": "space-service", "phase": "SCAFFOLD"},
-  "requestId": "b67828f9-4b62-423e-9ec0-b1891574650a"
-}
-```
+| 方法与路径 | 输入 | data | 要点 |
+|---|---|---|---|
+| GET /api/v1/spaces?type=NORMAL | type 可选：NORMAL、ACCESSIBLE、CHARGING、RESERVATION | [{spaceId,type,floor,zone,number,status}] | 只读，不替代预约冲突检查 |
+| POST /api/v1/spaces | {type,floor,zone,number} | {spaceId,type,floor,zone,number,status} | 管理员演示创建物理车位，初始 AVAILABLE；编号唯一；CHARGING 同一事务创建配套充电桩 |
+| PATCH /api/v1/spaces/{spaceId}/service-status | {status} | 同上 | status 仅 AVAILABLE/OUT_OF_SERVICE；OCCUPIED 不可停用，保留历史而不物理删除 |
+| GET /internal/v1/spaces/available?type=NORMAL | 必填 type | 同上，仅 AVAILABLE | 普通入场不得取 RESERVATION 位 |
+| POST /internal/v1/spaces/{spaceId}/occupy | {parkingSessionId} | {spaceId,type,floor,zone,number,status,parkingSessionId} | 条件更新 AVAILABLE→OCCUPIED；同 session 重试返回相同结果 |
+| POST /internal/v1/spaces/{spaceId}/release | {parkingSessionId} | 同上，status=AVAILABLE | 只有相同 session 可释放；重复释放幂等 |
+| POST /internal/v1/spaces/{spaceId}/settlement | {parkingSessionId} | {parkingSessionId,chargingCents} | 出账前冻结本停车记录充电费用；必须仍占用此车位且无 ACTIVE 充电；有 ACTIVE 返回 409 STATE_CONFLICT；冻结后禁止新增充电，同 session 重试返回原快照 |
+| POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；出场附加字段用于页面重开后恢复待结算工作台 |
+| GET /api/v1/access/locate?plateNumber=... | plateNumber 必填 | 同上 | 仅返回仍在场车辆；带回已冻结出场意图和账单 ID，客户端可继续支付/释放 |
+| GET /internal/v1/access/sessions?from=...&to=... | 带偏移量的 from、to，左闭右开 | [{parkingSessionId,entryTime,exitTime?,status}] | 只给 analytics 统计已完成入场的记录（PARKED/EXIT_PENDING_PAYMENT/PAID_PENDING_RELEASE/CLOSED），排除 ENTERING/ENTRY_FAILED |
 
-这些接口是连通性演示，不代表业务功能可用。网关默认端口 18080；`GET /actuator/health` 是各进程自己的健康检查，不经过业务路由。
+## UC-03 / UC-04 / UC-08：结算
 
-## 2. 通用数据格式
+| 方法与路径 | 输入 | data | 要点 |
+|---|---|---|---|
+| POST /api/v1/access/{sessionId}/exit-requests | {exitTime,exceptionType?,operator?} | {parkingSessionId,billId,status,amountDueCents} | exceptionType: NONE/LOST_CARD；丢卡时 operator 必填；超长由 billing 自动识别；冻结后在 access 保存出场意图（时间、异常、权益快照），再请求账单；重试按原意图恢复，改变时间/异常报 STATE_CONFLICT |
+| POST /api/v1/access/{sessionId}/complete-exit | {simulatedResult} | {parkingSessionId,billId,paymentId?,status,spaceReleased} | simulatedResult: SUCCESS/FAILURE；成功后释放，释放失败为 PAID_PENDING_RELEASE，重试不得二次扣费 |
+| POST /internal/v1/billing/bills | {parkingSessionId,entryTime,exitTime,benefitType,prepaidCents,chargingCents,exceptionType} | BillView | benefitType: NONE/RESERVATION/MONTHLY；同 session 只建一账单 |
+| GET /internal/v1/billing/bills/{billId} | — | BillView | 供失败后恢复 |
+| GET /api/v1/billing/bills/{billId} | — | BillView | 页面查看账单明细，不重算 |
+| POST /internal/v1/billing/bills/{billId}/payments | {simulatedResult,paymentSource?} | {paymentId,billId,billStatus,paymentStatus,paymentSource,amountCents} | SUCCESS/FAILURE；paymentSource: SIMULATED/MONTHLY_BALANCE；已成功支付重试返回原成功记录 |
+| POST /api/v1/billing/bills/{billId}/payments | 同上 | 同上 | 供独立演示/前端；出场仍通过 access 协调 |
+| POST /api/v1/billing/bills/{billId}/invoice-requests | {invoiceTitle,taxNumber?} | {invoiceRequestId,billId,status} | 仅已付账单，模拟申请 |
 
-- JSON UTF-8；外部接口前缀 `/api/v1`，内部调用前缀 `/internal/v1`。
-- ID 为字符串；车牌统一大写规范化；金额为非负整数，单位“分”；电量为十进制定点数，单位 kWh。
-- 时间为带偏移量的 ISO 8601 字符串，例如 `2026-10-01T08:30:00+08:00`。数据库存 UTC，计费自然日用 `Asia/Shanghai`。
-- 响应统一为 `code`、`message`、`data`、`requestId`。写操作接收 `Idempotency-Key` 请求头；同一键加同一请求内容重试应返回同一业务结果，键相同而内容不同须报冲突。
-- 跨服务 DTO 不携带 ORM 实体，不传其他服务的数据库表结构。失败响应不返回成功样式的 `data`。
+BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepaidCents,prepaidRefundCents,parkingDueCents,chargingCents,exceptionCents,amountDueCents,rateVersion,feeItems:[{name,amountCents,detail}]}。prepaidCents 是本单实际抵扣额；prepaidRefundCents 是待退差额。金额不为负；优惠、预付先作用于停车基础费，充电和异常费不参与抵扣。月卡余额可支付整张折后账单；余额不足则整笔改为模拟支付。账单 status: UNPAID/PAID。账单创建时保存费率版本和明细快照。
 
-## 3. 拟定接口和数据所有权
+停车记录状态：ENTERING/PARKED/EXIT_PENDING_PAYMENT/PAID_PENDING_RELEASE/CLOSED/ENTRY_FAILED。已付待释放需重试完成出场，不能新建账单。只有 CLOSED 才不再被寻车查询。
 
-| 提供服务 | 候选路径与方法 | 请求关键字段 | 响应关键字段 | 主要错误 |
-|---|---|---|---|---|
-| space-service | `GET /internal/v1/spaces/available` | type、start、end | spaceId、floor、zone、number | INVALID_ARGUMENT |
-| space-service | `POST /internal/v1/spaces/{spaceId}/occupy` | parkingSessionId、reservationId? | spaceId、state、version | SPACE_UNAVAILABLE |
-| space-service | `POST /internal/v1/spaces/{spaceId}/release` | parkingSessionId | spaceId、state | NOT_FOUND、STATE_CONFLICT |
-| access-service | `POST /api/v1/access/entries` | plateNumber、spaceType、reservationId? | parkingSessionId、space、entryTime | ACTIVE_SESSION_EXISTS、SPACE_UNAVAILABLE |
-| access-service | `GET /api/v1/access/locate` | plateNumber | parkingSessionId、floor、zone、spaceNumber | NOT_FOUND |
-| access-service | `POST /api/v1/access/{sessionId}/exit-requests` | exitTime、exceptionType? | billId、amountDueCents、status | STATE_CONFLICT、DEPENDENCY_UNAVAILABLE |
-| pass-service | `POST /api/v1/passes/reservations` | plateNumber、start、end、spaceType | reservationId、status、prepayCents | RESERVATION_CONFLICT |
-| pass-service | `POST /internal/v1/passes/eligibility` | plateNumber、entryTime、exitTime、spaceType | reservationBenefit、monthlyPassBenefit | PASS_NOT_ELIGIBLE |
-| billing-service | `POST /internal/v1/billing/quotes` | entryTime、exitTime、benefits、chargingCents | feeItems、amountDueCents、rateVersion | INVALID_ARGUMENT |
-| billing-service | `POST /internal/v1/billing/bills` | parkingSessionId、quote、exitTime | billId、status、amountDueCents | STATE_CONFLICT |
-| billing-service | `POST /api/v1/billing/bills/{billId}/payments` | simulatedResult | paymentId、billStatus | BILL_ALREADY_PAID |
-| billing-service | `POST /api/v1/billing/bills/{billId}/invoice-requests` | invoiceTitle、taxNumber? | invoiceRequestId、status | BILL_NOT_PAID |
-| space-service | `POST /api/v1/spaces/charging-sessions` | chargerId、parkingSessionId、startTime | chargingSessionId、status | SPACE_UNAVAILABLE |
-| space-service | `POST /api/v1/spaces/charging-sessions/{id}/finish` | endTime、energyKwh | chargingCents、status | STATE_CONFLICT |
-| analytics-service | `GET /api/v1/analytics/traffic` | from、to、granularity | countByBucket、peakBucket | INVALID_ARGUMENT |
+## UC-05 / UC-06：预约与月卡
 
-字段 `reservationBenefit`、`monthlyPassBenefit` 的金额和互斥规则、`simulatedResult` 的合法值，均等第 8 节业务决策后冻结。前端不得自行计算应付款；`quotes` 仅为试算，最终金额以 `bills` 快照为准。
+| 方法与路径 | 输入 | data | 要点 |
+|---|---|---|---|
+| POST /api/v1/passes/reservations | {plateNumber,spaceId,startTime,endTime} | {reservationId,spaceId,status,prepaidCents} | 仅 RESERVATION 车位；时段冲突在 pass 自有库中串行化检查 |
+| POST /api/v1/passes/reservations/{id}/pay | {simulatedResult} | {reservationId,status,paymentId} | SUCCESS 后 CONFIRMED；失败仍 PENDING_PAYMENT |
+| POST /api/v1/passes/reservations/{id}/cancel | {} | {reservationId,status,refundCents} | 开始前取消可退；幂等 |
+| POST /internal/v1/passes/reservations/{id}/consume | {plateNumber,entryTime,parkingSessionId} | {reservationId,spaceId,status,prepaidCents} | 仅 CONFIRMED 且匹配车牌/时间；重复同 session 幂等 |
+| POST /internal/v1/passes/reservations/{id}/release-consumption | {parkingSessionId} | {reservationId,status} | 仅占位失败时由 access 补偿本 session 的核销；相同请求幂等 |
+| POST /internal/v1/passes/reservations/{id}/refund-remainder | {parkingSessionId,amountCents} | {reservationId,parkingSessionId,refundCents,refundId} | 账单已付后由 access 请求退差额；同 session 重试幂等、金额变化报 IDEMPOTENCY_CONFLICT |
+| GET /internal/v1/passes/eligibility?plateNumber=...&entryTime=...&exitTime=...&spaceType=...&parkingSessionId=... | 五项必填 | {benefitType,prepaidCents,monthlyPassId?} | 预约按核销的停车记录 ID 精确核验，月卡按车牌和时段核验；无权益为 NONE |
+| POST /api/v1/passes/monthly-passes | {plateNumber,startTime} | {monthlyPassId,plateNumber,endTime,balanceCents,status} | 有效 30 天；初始余额来自配置及模拟充值记录 |
+| GET /api/v1/passes/monthly-passes/{id} | 月卡 ID | 同上 | 查询当前余额和有效状态 |
+| GET /api/v1/passes/monthly-passes/{id}/ledger | 月卡 ID | [{entryId,parkingSessionId?,kind,amountCents,balanceAfterCents,createdAt}] | 核对初始入金及自动扣费 |
+| POST /internal/v1/passes/monthly-passes/{id}/deductions | {parkingSessionId,amountCents} | {deductionId,balanceCents} | 同 session 幂等；余额不足报 PASS_BALANCE_INSUFFICIENT |
 
-## 4. HTTP 与错误语义
+预约状态 PENDING_PAYMENT/CONFIRMED/USED/CANCELLED/EXPIRED。未来预约时间窗只存在 pass-service；space-service 的状态只表示当前占用。月卡预存款扣除与账单支付须在 access 协调下可恢复，不得在失败后重复扣余额。
 
-| HTTP | 典型业务码 | 说明 |
-|---|---|---|
-| 200/201 | OK | 查询、创建或幂等重放成功 |
-| 400 | INVALID_ARGUMENT | 字段缺失、格式错误、时间区间不合法 |
-| 404 | NOT_FOUND | 资源不存在 |
-| 409 | SPACE_UNAVAILABLE / ACTIVE_SESSION_EXISTS / RESERVATION_CONFLICT / STATE_CONFLICT / BILL_ALREADY_PAID | 当前状态不允许操作 |
-| 503 | DEPENDENCY_UNAVAILABLE | 依赖服务不可用；不得伪称业务成功 |
+## UC-09 / UC-10：充电与报表
 
-具体 400/409 场景和错误信息需由实现者补齐测试。所有 agent 变更字段或状态时，先提出契约变更，经接口负责人更新本文件后再改代码。
+| 方法与路径 | 输入 | data | 要点 |
+|---|---|---|---|
+| GET /api/v1/spaces/chargers?spaceId=... | spaceId 可选 | [{chargerId,spaceId,status}] | 给演示页选择充电桩 |
+| POST /api/v1/spaces/charging-sessions | {chargerId,parkingSessionId,startTime} | {chargingSessionId,status} | 一个充电桩只能有一条 ACTIVE 会话；停车记录已冻结结算则 409 STATE_CONFLICT |
+| POST /api/v1/spaces/charging-sessions/{id}/finish | {endTime,energyKwh} | {chargingSessionId,status,energyKwh,chargingCents,rateVersion} | 金额只由服务配置计算 |
+| GET /internal/v1/spaces/charging-fees?parkingSessionId=... | 必填 parkingSessionId | {parkingSessionId,chargingCents} | 只读查看已结束费用，不保证结算一致性；access 出账必须调用 settlement 冻结接口 |
+| GET /api/v1/analytics/traffic?from=...&to=...&granularity=HOUR | 带偏移量时间，粒度 HOUR/DAY | {reportId,from,to,granularity,buckets:[{start,count}],peakBucket,totalEntries} | 入场时刻计数，左闭右开；生成的报表快照存 analytics 自有库 |
+| GET /api/v1/analytics/traffic-preview?from=...&to=...&granularity=HOUR | 同上 | 同上，reportId=null | 只读预览，不持久化，供总览图表刷新 |
+| GET /api/v1/analytics/traffic-reports/{id} | 报表 ID | 同上 | 重看已保存的快照，不重新访问 access |
+
+## 服务依赖及开发范围
+
+space 与 billing 不调用其他业务服务；pass 只读查询 space；access 调 space、pass、billing；analytics 只读调 access。网关只路由。第一条垂直链先完成无预约普通车位的入场、寻车、出账、模拟支付和释放，再接入其余功能；尚未实现的接口不能写成已完成。
+
+2026-09-28 补充：出场顺序为核验权益 → space 冻结充电费用 → billing 创建不可变账单。冻结记录存 space 自有库；冻结与开始充电使用同一车位行锁串行化，无消息队列或分布式事务。冻结后下游失败，可重试出账，不能再新增充电；释放后保留快照供审计。
