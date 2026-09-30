@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:18080',
+        target: process.env.PARKING_GATEWAY_URL || 'http://127.0.0.1:18080',
         changeOrigin: true,
       },
     },
