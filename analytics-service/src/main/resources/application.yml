@@ -1,14 +1,31 @@
 server:
-  port: 18085
+  port: ${ANALYTICS_PORT:18085}
 
 spring:
   application:
     name: analytics-service
+  datasource:
+    url: ${ANALYTICS_DB_URL:jdbc:mysql://localhost:3306/parking_analytics?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${ANALYTICS_DB_USER:root}
+    password: ${ANALYTICS_DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
   cloud:
     nacos:
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 5000
+
+clients:
+  access:
+    url: ${ACCESS_SERVICE_URL:http://localhost:18082}
 
 management:
   endpoints:

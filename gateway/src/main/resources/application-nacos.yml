@@ -1,0 +1,31 @@
+# 使用 --spring.profiles.active=nacos 启动网关时，路由通过注册中心解析服务名。
+# 所有业务服务也必须设置 NACOS_ENABLED=true 并注册到同一 Nacos。
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: spaces
+              uri: lb://space-service
+              predicates:
+                - Path=/api/v1/spaces/**
+            - id: access
+              uri: lb://access-service
+              predicates:
+                - Path=/api/v1/access/**
+            - id: billing
+              uri: lb://billing-service
+              predicates:
+                - Path=/api/v1/billing/**
+            - id: passes
+              uri: lb://pass-service
+              predicates:
+                - Path=/api/v1/passes/**
+            - id: analytics
+              uri: lb://analytics-service
+              predicates:
+                - Path=/api/v1/analytics/**

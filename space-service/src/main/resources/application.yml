@@ -1,9 +1,16 @@
 server:
-  port: 18081
+  port: ${SPACE_PORT:18081}
 
 spring:
   application:
     name: space-service
+  datasource:
+    url: ${SPACE_DB_URL:jdbc:mysql://127.0.0.1:3306/parking_space?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${SPACE_DB_USER:root}
+    password: ${SPACE_DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
   cloud:
     nacos:
       discovery:
@@ -15,3 +22,8 @@ management:
     web:
       exposure:
         include: health,info
+
+parking:
+  charging:
+    rate-version: ${CHARGING_RATE_VERSION:2026-09-demo-v1}
+    rate-cents-per-kwh: ${CHARGING_RATE_CENTS_PER_KWH:150}

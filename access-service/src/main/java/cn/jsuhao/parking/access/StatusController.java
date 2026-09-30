@@ -12,7 +12,7 @@ public class StatusController {
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of("code", "OK", "message", "service ready",
-                "data", Map.of("service", "access-service", "phase", "SCAFFOLD"),
+                "data", Map.of("service", "access-service", "phase", "BUSINESS_V1"),
                 "requestId", UUID.randomUUID().toString());
     }
 }

@@ -1,9 +1,16 @@
 server:
-  port: 18083
+  port: ${BILLING_PORT:18083}
 
 spring:
   application:
     name: billing-service
+  datasource:
+    url: ${BILLING_DB_URL:jdbc:mysql://127.0.0.1:3306/parking_billing?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${BILLING_DB_USER:root}
+    password: ${BILLING_DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
   cloud:
     nacos:
       discovery:
@@ -15,3 +22,22 @@ management:
     web:
       exposure:
         include: health,info
+
+parking:
+  pricing:
+    version: ${PARKING_RATE_VERSION:v1-demo-20260925}
+    free-minutes: ${PARKING_FREE_MINUTES:15}
+    daytime-start: ${PARKING_DAY_START:08:00}
+    daytime-end: ${PARKING_DAY_END:22:00}
+    day-first-minutes: ${PARKING_DAY_FIRST_MINUTES:60}
+    day-first-cents: ${PARKING_DAY_FIRST_CENTS:600}
+    day-step-minutes: ${PARKING_DAY_STEP_MINUTES:30}
+    day-step-cents: ${PARKING_DAY_STEP_CENTS:200}
+    night-step-minutes: ${PARKING_NIGHT_STEP_MINUTES:60}
+    night-step-cents: ${PARKING_NIGHT_STEP_CENTS:200}
+    daily-cap-cents: ${PARKING_DAILY_CAP_CENTS:6000}
+    reservation-discount-bps: ${PARKING_RESERVATION_DISCOUNT_BPS:1000}
+    monthly-discount-bps: ${PARKING_MONTHLY_DISCOUNT_BPS:2000}
+    lost-card-cents: ${PARKING_LOST_CARD_CENTS:2000}
+    long-stay-hours: ${PARKING_LONG_STAY_HOURS:48}
+    long-stay-surcharge-bps: ${PARKING_LONG_STAY_SURCHARGE_BPS:2000}

@@ -1,14 +1,35 @@
 server:
-  port: 18082
+  port: ${ACCESS_PORT:18082}
 
 spring:
   application:
     name: access-service
+  datasource:
+    url: ${ACCESS_DB_URL:jdbc:mysql://localhost:3306/parking_access?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${ACCESS_DB_USER:root}
+    password: ${ACCESS_DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
   cloud:
     nacos:
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 5000
+
+clients:
+  space:
+    url: ${SPACE_SERVICE_URL:http://localhost:18081}
+  billing:
+    url: ${BILLING_SERVICE_URL:http://localhost:18083}
+  pass:
+    url: ${PASS_SERVICE_URL:http://localhost:18084}
 
 management:
   endpoints:
