@@ -1,0 +1,33 @@
+@startuml
+title UC-03＋UC-04 出场设计顺序图（AI-辅助）
+actor 车主
+participant "AccessService" as access
+participant "SpaceClient" as space
+participant "PassClient" as pass
+participant "BillingClient" as billing
+database "parking_access" as db
+车主 -> access : exit-requests(sessionId, exitTime)
+access -> pass : eligibility(plate,entry,exit,type,sessionId)
+access -> space : settlement(spaceId,sessionId)
+note right of space : 无 ACTIVE 充电时冻结费用快照\n冻结后禁止新增充电
+space --> access : chargingCents 或 STATE_CONFLICT
+access -> db : 保存 exit_intent 时间/异常/权益快照
+access -> billing : createBill(sessionId,时间,权益,充电)
+billing --> access : billId, amountDueCents, prepaidRefundCents
+access -> db : UPDATE EXIT_PENDING_PAYMENT
+access --> 车主 : 账单摘要
+车主 -> access : complete-exit(SUCCESS/FAILURE)
+opt 有效月卡且账单未付
+  access -> pass : deduct(monthlyPassId,amountDueCents)
+end
+access -> billing : pay(billId,模拟结果/余额来源)
+billing --> access : PAID 或 UNPAID
+alt 已支付
+  access -> db : UPDATE PAID_PENDING_RELEASE
+  opt 预约预付有差额
+    access -> pass : refund-remainder(reservationId,sessionId)
+  end
+  access -> space : release(spaceId,sessionId)
+  access -> db : UPDATE CLOSED
+end
+@enduml

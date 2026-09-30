@@ -1,0 +1,15 @@
+@startuml
+title Reservation 状态图（AI-辅助）
+[*] --> PENDING_PAYMENT : 创建未来时段预约
+PENDING_PAYMENT --> CONFIRMED : 模拟预付成功
+PENDING_PAYMENT --> PENDING_PAYMENT : 模拟预付失败
+PENDING_PAYMENT --> CANCELLED : 开始前取消
+PENDING_PAYMENT --> EXPIRED : 支付窗口过期
+CONFIRMED --> USED : 对应车牌入场核销
+CONFIRMED --> CANCELLED : 开始前取消并退款
+CONFIRMED --> EXPIRED : 到期未入场
+USED --> CONFIRMED : 占位失败，核销补偿
+USED --> [*] : 完成停车
+CANCELLED --> [*]
+EXPIRED --> [*]
+@enduml

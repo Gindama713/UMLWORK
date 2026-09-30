@@ -1,0 +1,35 @@
+@startuml
+title 组件图（AI-辅助）
+skinparam componentStyle rectangle
+component "Vue 3 + Element Plus" as ui
+component "Spring Cloud Gateway" as gateway
+component "access-service" as access
+component "space-service" as space
+component "pass-service" as pass
+component "billing-service" as billing
+component "analytics-service" as analytics
+database "parking_access" as dba
+database "parking_space" as dbs
+database "parking_pass" as dbp
+database "parking_billing" as dbb
+database "parking_analytics" as dban
+ui --> gateway : REST JSON /api/v1
+gateway --> access
+gateway --> space
+gateway --> pass
+gateway --> billing
+gateway --> analytics
+access --> space : OpenFeign
+access --> pass : OpenFeign
+access --> billing : OpenFeign
+pass --> space : OpenFeign 只读
+analytics --> access : OpenFeign 只读
+access --> dba
+space --> dbs
+pass --> dbp
+billing --> dbb
+analytics --> dban
+note bottom
+数据库均为独立 schema；服务之间不跨库 JOIN。
+end note
+@enduml

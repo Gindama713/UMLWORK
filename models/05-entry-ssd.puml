@@ -1,0 +1,13 @@
+@startuml
+title UC-02 系统顺序图 SSD（AI-辅助）
+actor "收费员/模拟识别设备" as actor
+participant "机场停车系统" as system
+actor -> system : enter(plateNumber, spaceType, reservationId?, entryTime?)
+alt 同车牌已在场
+  system --> actor : ACTIVE_SESSION_EXISTS
+else 预约无效或无可用车位
+  system --> actor : PASS_NOT_ELIGIBLE / SPACE_UNAVAILABLE
+else 占位并登记成功
+  system --> actor : parkingSessionId, floor, zone, spaceNumber
+end
+@enduml

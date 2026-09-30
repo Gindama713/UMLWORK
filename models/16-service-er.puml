@@ -1,0 +1,132 @@
+@startuml
+title 服务独立数据库 ER 概念图（AI-辅助）
+hide methods
+package "parking_space" {
+  entity parking_space {
+    * id : UUID <<PK>>
+    --
+    type
+    status
+    parking_session_id
+  }
+  entity charger {
+    * id : UUID <<PK>>
+    --
+    space_id : UUID
+  }
+  entity charging_session {
+    * id : UUID <<PK>>
+    --
+    charger_id : UUID
+    parking_session_id : UUID
+    charging_cents
+  }
+  entity charging_settlement {
+    * parking_session_id : UUID <<PK>>
+    --
+    space_id : UUID
+    charging_cents
+    created_at
+  }
+  parking_space ||--o{ charging_settlement
+  parking_space ||--o| charger
+  charger ||--o{ charging_session
+}
+package "parking_access" {
+  entity access_request_key {
+    * request_key : string <<PK>>
+    --
+    operation_name
+    request_signature
+  }
+  entity exit_intent {
+    * parking_session_id : UUID <<PK>>
+    --
+    exit_time
+    exception_type
+    benefit_type
+    prepaid_cents
+    monthly_pass_id
+  }
+  entity parking_session {
+    * id : UUID <<PK>>
+    --
+    active_plate : UNIQUE nullable
+    space_id : UUID
+    bill_id : UUID
+    status
+  }
+  parking_session ||--o| exit_intent
+}
+package "parking_pass" {
+  entity reservation {
+    * reservation_id : UUID <<PK>>
+    --
+    space_id : UUID
+    consumed_session_id : UUID
+    start_time
+    end_time
+  }
+  entity reservation_prepayment {
+    * entry_id : UUID <<PK>>
+    --
+    reservation_id : UUID
+    parking_session_id : UUID
+    kind
+    amount_cents
+  }
+  entity monthly_pass {
+    * monthly_pass_id : UUID <<PK>>
+    --
+    plate_number
+    balance_cents
+  }
+  entity monthly_ledger {
+    * entry_id : UUID <<PK>>
+    --
+    monthly_pass_id : UUID
+    parking_session_id : UUID
+  }
+  monthly_pass ||--o{ monthly_ledger
+  reservation ||--o{ reservation_prepayment
+}
+package "parking_billing" {
+  entity bill {
+    * bill_id : UUID <<PK>>
+    --
+    parking_session_id : UNIQUE
+    amount_due_cents
+    rate_version
+  }
+  entity payment {
+    * payment_id : UUID <<PK>>
+    --
+    bill_id : UUID
+  }
+  entity invoice_request {
+    * invoice_request_id : UUID <<PK>>
+    --
+    bill_id : UUID
+  }
+  bill ||--o{ payment
+  bill ||--o{ invoice_request
+}
+package "parking_analytics" {
+  entity traffic_report {
+    * id : UUID <<PK>>
+    --
+    total_entries
+    peak_start
+  }
+  entity traffic_bucket {
+    * report_id : UUID
+    * bucket_start
+    --
+    entry_count
+  }
+  traffic_report ||--o{ traffic_bucket
+}
+note bottom
+跨 package 的相同 ID 只是接口引用，不建立跨库外键。
+end note
+@enduml

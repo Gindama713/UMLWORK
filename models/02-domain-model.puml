@@ -1,0 +1,82 @@
+@startuml
+title 领域概念与事实所有权（AI-辅助）
+hide methods
+package "space-service" {
+  class ParkingSpace {
+    spaceId
+    type
+    floor
+    zone
+    number
+    status
+  }
+  class Charger {
+    chargerId
+    spaceId
+  }
+  class ChargingSession {
+    chargingSessionId
+    parkingSessionId
+    energyKwh
+    chargingCents
+  }
+}
+package "access-service" {
+  class ParkingSession {
+    parkingSessionId
+    plateNumber
+    entryTime
+    exitTime
+    status
+  }
+}
+package "pass-service" {
+  class Reservation {
+    reservationId
+    plateNumber
+    spaceId
+    startTime
+    endTime
+    status
+  }
+  class MonthlyPass {
+    monthlyPassId
+    plateNumber
+    balanceCents
+    startTime
+    endTime
+  }
+}
+package "billing-service" {
+  class Bill {
+    billId
+    parkingSessionId
+    rateVersion
+    amountDueCents
+    status
+  }
+  class Payment {
+    paymentId
+    billId
+    paymentSource
+    paymentStatus
+  }
+  class InvoiceRequest {
+    invoiceRequestId
+    billId
+    status
+  }
+}
+ParkingSpace "1" -- "0..*" ParkingSession : spaceId
+ParkingSpace "1" -- "0..1" Charger : spaceId
+Charger "1" -- "0..*" ChargingSession : chargerId
+ParkingSession "1" -- "0..*" ChargingSession : parkingSessionId
+Reservation "0..1" ..> ParkingSession : 核销时绑定 ID
+MonthlyPass "0..1" ..> ParkingSession : 权益快照
+ParkingSession "1" ..> "0..1" Bill : parkingSessionId
+Bill "1" -- "0..*" Payment : billId
+Bill "1" -- "0..*" InvoiceRequest : billId
+note bottom
+虚线关联只表示跨服务 ID/DTO，不表示跨库外键。
+end note
+@enduml

@@ -1,0 +1,40 @@
+@startuml
+title 跨服务停车流程活动图（AI-辅助）
+start
+:模拟车牌识别并规范化;
+:access 写 ENTERING，唯一车牌约束;
+if (有预约?) then (是)
+  :pass 核验并核销预约;
+endif
+:space 条件占用车位;
+if (占位成功?) then (否)
+  :补偿预约核销;
+  :access 记 ENTRY_FAILED;
+  stop
+endif
+:access 记 PARKED;
+:按需寻车或充电;
+:出场时核验权益;
+if (仍有 ACTIVE 充电?) then (是)
+  :提示先结束充电，保持 PARKED;
+  stop
+endif
+:space 冻结充电费用，禁止新增充电;
+:billing 按规则版本生成账单;
+:access 记 EXIT_PENDING_PAYMENT;
+if (支付成功?) then (否)
+  :保留待支付，允许新尝试;
+  stop
+endif
+:access 记 PAID_PENDING_RELEASE;
+if (预约预付剩余?) then (是)
+  :pass 幂等退款差额;
+endif
+:space 幂等释放车位;
+if (释放成功?) then (否)
+  :保留 PAID_PENDING_RELEASE 待重试;
+  stop
+endif
+:access 记 CLOSED;
+stop
+@enduml

@@ -1,5 +1,5 @@
 @startuml
-title 服务依赖草图（AI-辅助，待审核）
+title 服务依赖图 v1（AI-辅助，待负责人审核）
 skinparam componentStyle rectangle
 actor 车主
 actor 管理员
@@ -21,8 +21,9 @@ access --> space : 占用/释放车位\n充电明细
 access --> pass : 预约/月卡资格
 access --> billing : 出账/支付结果
 pass --> space : 预约资源校验
-pass --> billing : 预付结果
 analytics ..> access : 只读统计数据/事件
-analytics ..> space : 只读统计数据/事件
-analytics ..> billing : 只读统计数据/事件
+note right of pass
+预约预付凭据由 pass 自有数据库管理。
+停车结算账单由 billing 管理。
+end note
 @enduml

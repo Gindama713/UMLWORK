@@ -1,0 +1,33 @@
+@startuml
+title 本机演示部署图（AI-辅助）
+node "浏览器" {
+  artifact "Vue/Vite 开发页" as ui
+}
+node "Windows 开发主机" {
+  node "Java 21 进程" {
+    artifact "gateway :18080" as gateway
+    artifact "space-service :18081" as space
+    artifact "access-service :18082" as access
+    artifact "billing-service :18083" as billing
+    artifact "pass-service :18084" as pass
+    artifact "analytics-service :18085" as analytics
+  }
+  database "MySQL 8.4 :3306\n五个独立 schema" as mysql
+  artifact "Nacos（可选发现模式）" as nacos
+}
+ui --> gateway : HTTP
+gateway --> space
+gateway --> access
+gateway --> billing
+gateway --> pass
+gateway --> analytics
+space --> mysql
+access --> mysql
+billing --> mysql
+pass --> mysql
+analytics --> mysql
+note right of nacos
+真实 Nacos 注册发现尚未验证时，
+报告不得标为已运行组件。
+end note
+@enduml

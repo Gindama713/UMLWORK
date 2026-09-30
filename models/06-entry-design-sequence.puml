@@ -1,0 +1,28 @@
+@startuml
+title UC-02 入场设计顺序图（AI-辅助）
+actor 收费员
+participant "AccessController" as controller
+participant "AccessService" as access
+database "parking_access" as db
+participant "PassClient" as pass
+participant "SpaceClient" as space
+收费员 -> controller : POST /api/v1/access/entries
+controller -> access : enter(request,key)
+access -> db : INSERT ENTERING（唯一 active_plate/request_key）
+opt 预约位
+  access -> pass : consume(reservationId,sessionId)
+  pass --> access : spaceId, prepaidCents
+end
+access -> space : available(type) / occupy(spaceId,sessionId)
+space --> access : 车位位置与 OCCUPIED
+access -> db : UPDATE PARKED
+access --> controller : SessionView
+controller --> 收费员 : parkingSessionId, 车位位置
+alt 入场失败
+  access -> space : release(spaceId,sessionId)
+  opt 已核销预约
+    access -> pass : release-consumption(reservationId,sessionId)
+  end
+  access -> db : UPDATE ENTRY_FAILED（补偿成功时）
+end
+@enduml

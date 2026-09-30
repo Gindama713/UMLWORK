@@ -1,0 +1,14 @@
+@startuml
+title ParkingSession 状态图（AI-辅助）
+[*] --> ENTERING : 入场请求写入本地记录
+ENTERING --> PARKED : 车位占用成功
+ENTERING --> ENTRY_FAILED : 占位失败且补偿完成
+ENTERING --> ENTERING : 补偿失败，等待同请求键重试
+PARKED --> EXIT_PENDING_PAYMENT : 账单已生成
+EXIT_PENDING_PAYMENT --> EXIT_PENDING_PAYMENT : 模拟支付失败
+EXIT_PENDING_PAYMENT --> PAID_PENDING_RELEASE : 账单支付成功
+PAID_PENDING_RELEASE --> PAID_PENDING_RELEASE : 退款或释放失败
+PAID_PENDING_RELEASE --> CLOSED : 退款与释放完成
+ENTRY_FAILED --> [*]
+CLOSED --> [*]
+@enduml

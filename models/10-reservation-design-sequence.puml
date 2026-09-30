@@ -1,0 +1,24 @@
+@startuml
+title UC-05 预约设计顺序图（AI-辅助）
+actor 车主
+participant "PassController" as controller
+participant "PassService" as pass
+participant "SpaceClient（只读）" as space
+database "parking_pass" as db
+车主 -> controller : POST /api/v1/passes/reservations
+controller -> pass : reserve(request,key)
+pass -> space : GET /api/v1/spaces?type=RESERVATION
+space --> pass : 车位类型与当前状态
+pass -> db : 锁定 reservation_lock(spaceId)
+pass -> db : 检查 [start,end) 重叠
+alt 有冲突
+  pass --> controller : RESERVATION_CONFLICT
+else 无冲突
+  pass -> db : INSERT PENDING_PAYMENT
+  pass --> controller : reservationId,prepaidCents
+  车主 -> controller : pay(reservationId,SUCCESS)
+  controller -> pass : pay()
+  pass -> db : 预付流水 + UPDATE CONFIRMED
+  pass --> 车主 : CONFIRMED
+end
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+title UC-05 预约与预付 SSD（AI-辅助）
+actor 车主
+participant "机场停车系统" as system
+车主 -> system : reserve(plateNumber,spaceId,startTime,endTime)
+alt 时段冲突
+  system --> 车主 : RESERVATION_CONFLICT
+else 可预约
+  system --> 车主 : reservationId,PENDING_PAYMENT,prepaidCents
+  车主 -> system : payReservation(reservationId,SUCCESS/FAILURE)
+  alt 预付成功
+    system --> 车主 : CONFIRMED
+  else 预付失败
+    system --> 车主 : PENDING_PAYMENT
+  end
+end
+opt 开始前取消
+  车主 -> system : cancelReservation(reservationId)
+  system --> 车主 : CANCELLED,refundCents
+end
+@enduml

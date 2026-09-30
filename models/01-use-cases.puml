@@ -1,0 +1,33 @@
+@startuml
+title UC-01～UC-10 总体用例图（AI-辅助）
+left to right direction
+actor 车主
+actor 收费员
+actor 管理员
+actor "模拟识别设备" as 设备
+rectangle "机场智慧停车与出行服务平台" {
+  usecase "UC-01 管理车位资源" as UC01
+  usecase "UC-02 登记车辆入场" as UC02
+  usecase "UC-03 计算停车费用" as UC03
+  usecase "UC-04 模拟支付与申请发票" as UC04
+  usecase "UC-05 预约车位与预付" as UC05
+  usecase "UC-06 管理月卡与自动扣费" as UC06
+  usecase "UC-07 反向寻车" as UC07
+  usecase "UC-08 处理异常出场" as UC08
+  usecase "UC-09 使用充电桩并计费" as UC09
+  usecase "UC-10 查看车流量报表" as UC10
+}
+管理员 --> UC01
+管理员 --> UC10
+收费员 --> UC02
+收费员 --> UC08
+设备 --> UC02
+车主 --> UC04
+车主 --> UC05
+车主 --> UC06
+车主 --> UC07
+车主 --> UC09
+UC04 ..> UC03 : <<include>>
+UC08 ..> UC03 : <<include>>
+UC09 ..> UC03 : <<include>>
+@enduml

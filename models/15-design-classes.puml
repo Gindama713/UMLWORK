@@ -1,0 +1,71 @@
+@startuml
+title 核心服务设计类图（AI-辅助，与代码类名对应）
+hide empty members
+package "access-service" {
+  class AccessController
+  class AccessService {
+    enter()
+    requestExit()
+    completeExit()
+    locate()
+  }
+  class AccessRepository {
+    insert()
+    chooseSpace()
+    exitRequested()
+    paid()
+    closed()
+  }
+  interface SpaceClient
+  interface PassClient
+  interface BillingClient
+  AccessController --> AccessService
+  AccessService --> AccessRepository
+  AccessService --> SpaceClient
+  AccessService --> PassClient
+  AccessService --> BillingClient
+}
+package "billing-service" {
+  class BillingController
+  class BillingService {
+    createBill()
+    pay()
+    requestInvoice()
+  }
+  class ParkingPricing {
+    calculate()
+  }
+  interface BenefitPolicy {
+    discount(base)
+  }
+  class PricingProperties
+  BillingController --> BillingService
+  BillingService --> ParkingPricing
+  ParkingPricing --> PricingProperties
+  ParkingPricing --> BenefitPolicy : 三种策略
+}
+package "space-service" {
+  class SpaceController
+  class ChargingController
+  class SpaceOperations {
+    occupy()
+    release()
+    settle()
+    startCharging()
+    finishCharging()
+  }
+  class Idempotency
+  SpaceController --> SpaceOperations
+  ChargingController --> SpaceOperations
+  SpaceOperations --> Idempotency
+}
+package "pass-service" {
+  class PassController
+  class PassService
+  class IdempotencyStore
+  interface "SpaceClient（只读）" as PassSpaceClient
+  PassController --> PassService
+  PassService --> IdempotencyStore
+  PassService --> PassSpaceClient
+}
+@enduml
