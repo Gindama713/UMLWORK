@@ -70,7 +70,7 @@ package "billing-service" {
     -currentRates: Supplier<PricingProperties>
     ~calculate(request: BillRequest): PriceBreakdown
   }
-  interface BenefitPolicy {
+  interface "ParkingPricing.BenefitPolicy" as BenefitPolicy <<private nested>> {
     +discount(base: long): long
   }
   class PricingProperties <<record>> {
@@ -94,7 +94,13 @@ package "billing-service" {
   BillingController "1" --> "1" BillingService : billing
   BillingService "1" --> "1" ParkingPricing : pricing
   ParkingPricing ..> PricingProperties : bind current config
-  ParkingPricing ..> BenefitPolicy : use strategy
+  ParkingPricing ..> BenefitPolicy : declares and uses nested interface
+  note right of BenefitPolicy
+    ParkingPricing 内的 private interface。
+    switch 中 NONE 使用匿名类实现；
+    RESERVATION 和 MONTHLY 使用 lambda 实现。
+    代码没有这三种策略的具名类。
+  end note
 }
 
 package "space-service" {
