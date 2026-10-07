@@ -7,7 +7,7 @@
 - **A1/A2/A3**：`models/15-design-classes.puml` 按各服务 Java 源码补真实字段类型、方法参数/返回类型和可见性（包内访问用 `~`），引用关系标多重性；`ParkingPricing.BenefitPolicy` 标为私有嵌套接口，真实 `NONE` 匿名类用 `..|>` 实现关系表示，两个 lambda 只在 note 中说明，没有虚构具名策略类；补 `analytics-service` 的 Controller、Service、Feign 客户端、records 和异常类，注明只读调用 access、自有 JDBC 只写 analytics 库。覆盖 UC-03/04/10 等；没有改代码、接口、状态、金额单位或数据库表。A1/A2/A3 分别提交 `99421df`、`d8647bf`、`d4db3d0`，最终匿名实现连线另见本轮渲染同步提交。
 - **A4**：`models/17-process-sequence.puml` 新增报告图 3-2，命线为客户端、网关及四个参与出场的业务服务；依次表现权益核验、充电费用冻结、`exit_intent` 与 `EXIT_PENDING_PAYMENT` 持久化、出账、支付、`PAID_PENDING_RELEASE`、释放与 `CLOSED`。billing 停机分支返回 503 并保留原意图，同键重试读取旧快照；释放失败分支跳过已付账单的再次支付。与代码 `AccessService.requestExit/completeExit` 和 `AccessRepository.reserveExit` 核对；未画 Sentinel 分支，因为 B2 已回退。`docs/report-outline.md` 的图号与缺口清单已更新，提交 `9cc6d26`。
 - **模型验收**：本机 VS Code 扩展内 PlantUML 1.2024.3 对 18 个 `.puml` 运行 `-checkonly`，退出码 0；同一工具渲染出 22 张 PNG（15 号一份源生成五张服务类图）。类图可见性行计数 91、多重性行计数 16、实现关系行计数 1，均非零；实际打开 `models/rendered/15-design-classes.png`、`15-design-classes_001.png`～`_004.png` 与 `17-process-sequence.png` 检查，未见文字截断或连线重叠。可复现命令：`$files=Get-ChildItem models -Filter '*.puml' | % FullName; java -jar <本机 plantuml.jar> -checkonly $files; java -jar <本机 plantuml.jar> -charset UTF-8 -tpng -o rendered $files`。报告图4-1～4-5 应分别引用这五张类图。
-- **边界**：本轮只修改模型和说明，后端验证沿用 B3 的 16 条自动测试、MySQL 并发脚本及网关烟测原始输出；未把模型更新说成新的运行联调。B1/B2 仍未通过，课程截图、录屏与原创章节仍由负责人完成。未推送远端。
+- **边界**：本轮只修改模型和说明，后端验证沿用 B3 的 16 条自动测试、MySQL 并发脚本及网关烟测原始输出；未把模型更新说成新的运行联调。`frontend` 中 `npm run build` 在受限沙箱首次因 esbuild `spawn EPERM` 未能启动；同一命令在允许子进程的环境下通过（Vite 6.3.5，主 JS 991.65 kB，只有体积警告）。B1/B2 仍未通过，课程截图、录屏与原创章节仍由负责人完成。未推送远端。
 
 ## 2026-10-07：加分项核验与 Nacos 配置中心
 
