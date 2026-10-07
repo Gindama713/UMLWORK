@@ -11,11 +11,17 @@ access -> pass : eligibility(plate,entry,exit,type,sessionId)
 access -> space : settlement(spaceId,sessionId)
 note right of space : 无 ACTIVE 充电时冻结费用快照\n冻结后禁止新增充电
 space --> access : chargingCents 或 STATE_CONFLICT
-access -> db : 保存 exit_intent 时间/异常/权益快照
+access -> db : 原子保存 exit_intent 并置 EXIT_PENDING_PAYMENT
 access -> billing : createBill(sessionId,时间,权益,充电)
-billing --> access : billId, amountDueCents, prepaidRefundCents
-access -> db : UPDATE EXIT_PENDING_PAYMENT
-access --> 车主 : 账单摘要
+alt billing 暂不可用
+  billing --> access : DEPENDENCY_UNAVAILABLE
+  access --> 车主 : 保留原出场意图，稍后重试
+else 出账成功
+  billing --> access : billId, amountDueCents, prepaidRefundCents
+  access -> db : 保存 billId
+end
+access --> 车主 : 账单摘要（出账成功时）
+opt 已生成账单，车主请求完成出场
 车主 -> access : complete-exit(SUCCESS/FAILURE)
 opt 有效月卡且账单未付
   access -> pass : deduct(monthlyPassId,amountDueCents)
@@ -29,5 +35,6 @@ alt 已支付
   end
   access -> space : release(spaceId,sessionId)
   access -> db : UPDATE CLOSED
+end
 end
 @enduml

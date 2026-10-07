@@ -13,7 +13,7 @@ node "Windows 开发主机" {
     artifact "analytics-service :18085" as analytics
   }
   database "MySQL 8.4 :3306\n五个独立 schema" as mysql
-  artifact "Nacos（可选发现模式）" as nacos
+  artifact "Nacos 3.1.1 standalone\n:8848 注册发现 / :8080 控制台" as nacos
 }
 ui --> gateway : HTTP
 gateway --> space
@@ -21,13 +21,20 @@ gateway --> access
 gateway --> billing
 gateway --> pass
 gateway --> analytics
+gateway ..> nacos : 注册 / lb:// 服务名发现
+space ..> nacos : 注册
+access ..> nacos : 注册 / Feign 发现
+billing ..> nacos : 注册
+pass ..> nacos : 注册 / Feign 发现
+analytics ..> nacos : 注册 / Feign 发现
 space --> mysql
 access --> mysql
 billing --> mysql
 pass --> mysql
 analytics --> mysql
 note right of nacos
-真实 Nacos 注册发现尚未验证时，
-报告不得标为已运行组件。
+本机联调：六实例健康注册；
+网关和跨服务调用已通过。
+Nacos 配置中心未接入。
 end note
 @enduml

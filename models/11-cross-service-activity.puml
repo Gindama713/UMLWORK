@@ -20,8 +20,13 @@ if (仍有 ACTIVE 充电?) then (是)
   stop
 endif
 :space 冻结充电费用，禁止新增充电;
+:access 保存出场意图并记 EXIT_PENDING_PAYMENT;
 :billing 按规则版本生成账单;
-:access 记 EXIT_PENDING_PAYMENT;
+if (出账成功?) then (否)
+  :保留原出场意图，待 billing 恢复后重试;
+  stop
+endif
+:access 保存账单 ID;
 if (支付成功?) then (否)
   :保留待支付，允许新尝试;
   stop
