@@ -1,6 +1,35 @@
-# Agent 交接记录（2026-09-28，当前可接手）
+# Agent 交接记录（2026-10-06，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-06：车位立体示意与轻量动效
+
+- **范围与文件**：为 UC-01、UC-07 的车位展示修改 `frontend/src/components/SpaceMap.vue`、`frontend/src/style.css`；近 24 小时车流柱图只增加短时入场动画。先在 `docs/ui-design.md` 记录 ECharts GL、数据过渡、动态排序柱图的官方资料和取舍。没有新增依赖、接口、状态或数据库表；模型中的资源含义不变，对应车位资源模型与 UC-01/07 映射见 `docs/traceability.md`。
+- **行为**：页面新增“立体/平面”视角按钮，按服务返回的真实楼层、区域、车位、状态绘制同一批车位；立体效果是 CSS 透视与层高示意，不代表机场真实建筑。选中、筛楼层、点击详情在两种视角下保持一致。`prefers-reduced-motion` 仍关闭所有非必要动效。
+- **验证与运行**：`cd frontend && npm run build` 成功，主 JS 991.65 kB（原有体积警告）。本机 MySQL + 五服务 + gateway 固定地址模式启动，Vite `http://127.0.0.1:5173/` 页面显示 5/5、15 个实际车位；浏览器切换视角、B2 筛选、点击 C-001 均通过，390px 宽无横向溢出，控制台无 error/warn。服务 PID 位于忽略目录 `target/local-runtime/ui-processes.json`，Vite PID 位于 `ui-vite.pid`，接手时先核实进程存活。没有帧率量测，不能写成达到某个 FPS。未推送远端；课程正式截图仍须负责人本人采集。
+
+## 2026-09-30：任务 C 浏览器业务回归
+
+- **预约（UC-05、图 08/11）**：在 Vite 页面经网关创建苏AUI3091 对 D-001 的预约（18:00～19:00），模拟预付失败后重试成功，18:15 凭证入场，19:15 出场；页面显示停车费 600 分、预约优惠 60 分、预付抵扣 500 分、应付 40 分。模拟结算支付失败时保留待支付，重试后显示已支付、`CLOSED` 和车位释放。另创建苏AUI3092 对 D-002 的待预付预约并在页面取消，显示 `CANCELLED`。这些是演示输入时刻，不代表生产时钟规则。
+- **月卡（UC-06、图 08/11）**：页面创建苏AUI3095 月卡，初始余额 20000 分及 `INITIAL_CREDIT` 流水；普通车位入场，账单停车费 1200 分、月卡优惠 240 分，完成出场后刷新显示余额 19040 分、唯一一条 960 分 `DEBIT` 流水，关联停车记录 `a53952c8-a30f-436d-9497-d69035bec563`。月卡 ID 为 `00112e1e-e8ec-480e-9634-0d32675f3dd4`。
+- **充电（UC-09、图 08/11）**：苏AUI3094 入 C-001 充电位，14:30 开始、15:00 结束，输入 2.000 kWh，页面显示 300 分；16:00 出场账单分列停车 1000 分、充电 300 分、应付 1300 分，支付后 `CLOSED` 且车位释放。充电会话 ID 为 `3be788bf-6325-404d-8e40-2d8323c51639`。
+- **浏览器发现并修复**：从预约车位切到普通车位时，隐藏的旧 `reservationId` 原仍被提交，后端正确拒绝。`frontend/src/App.vue` 仅在 `spaceType === 'RESERVATION'` 时提交此字段；复现旧值后切普通位、入场成功，`frontend` 的 `npm run build` 通过。接口、状态、表和 UML 未变化；复用现有入场接口，未增加依赖。首次沙箱构建因 esbuild `spawn EPERM` 未启动，获准沙箱外构建成功。
+- **证据边界与运行**：上述为本机真实 MySQL + 网关 + Vite 的浏览器操作，非课程提交截图；负责人仍须在本人机器采集完整窗口截图与录屏。当前服务重启后的 PID 记录为忽略文件 `target/local-runtime/nacos-processes-c.json`，下次接手须核实 PID 和端口，勿把旧运行记录当作仍在线。Nacos 控制台实例页截图仍待负责人本人初始化管理员密码；API 六实例和网关调用证据见任务 A。任务 B 的独立故障窗口见 `docs/mysql-fault-tests.md`。
+
+## 2026-09-30：任务 A 真实 Nacos 服务发现联调
+
+- **已实测**：官方 Nacos 3.1.1 standalone 从忽略的 `target/local-runtime/nacos-3.1.1/` 启动，8848 客户端端口和 8080 控制台端口可达。六个 Java 进程设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=127.0.0.1:8848`；四个调用方 `*_SERVICE_URL` 均置空；gateway 使用 `--spring.profiles.active=nacos`。`Invoke-RestMethod 'http://127.0.0.1:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=100'` 返回 gateway、space、access、billing、pass、analytics 共六个服务；逐个 `.../nacos/v1/ns/instance/list?serviceName=名称` 返回一个 `healthy=True enabled=True` 实例，端口分别为 18080～18085。原始摘要在忽略文件 `target/local-runtime/nacos-instances.log`，可随时用上述命令重查。
+- **经网关实测**：`./scripts/smoke-gateway.ps1` 12 项检查全部 PASS，停车记录 `acc7e1e4-3993-441a-9cf6-1b5f35e73783`，账单 `cf9fc60c-18b3-45e9-b359-c4b1ebf59518`（停车 1000 分、充电 300 分、应付 1300 分），输出在 `target/local-runtime/nacos-smoke-gateway.log`。另经网关 `POST /api/v1/passes/reservations` 返回 200/PENDING_PAYMENT，随后取消返回 200/CANCELLED；这一步验证 pass 的 Feign `space-service` 服务名发现。六个 `/actuator/health` 均为 UP。
+- **发现并修复**：空 `SPACE_SERVICE_URL` 时 pass 启动失败，明确报 `No Feign Client for loadBalancing defined`。负责人已同意补官方依赖；只在 `pass-service/pom.xml` 加入 BOM 管理的 `spring-cloud-starter-loadbalancer`。`./mvnw.cmd -pl pass-service -am package` 通过，pass 自身 4 个测试 0 失败。网关、access、analytics 原本已含该依赖，无需增加。接口路径/DTO/状态/数据库表未变；部署约定同步到 `docs/api-contract.md`，已更新 `models/13-deployment.puml` 和渲染 PNG（图 13），以及 README。
+- **待补控制台 UI 证据**：Nacos 控制台首次访问停在“初始化管理员密码”。凭据必须由负责人亲自设置，尚未取得控制台实例页截图；不要把上述 API 证据写成“控制台截图已完成”。负责人设置后进入服务管理实例列表，确认六项，再由其采集课程所需本人完整窗口截图。当前六个 Java 进程 PID 位于 `target/local-runtime/nacos-processes-c.json`，重启前须按端口和命令核实；Nacos 包、认证密钥和日志均留在忽略的本地运行目录，未写入 Git。
+- **覆盖与后续**：本项联调覆盖 UC-02、UC-03、UC-04、UC-05、UC-07、UC-09、UC-10 的相关真实接口。任务 B、C 的结果见相应章节。课程报告中的 Nacos 注册截图仍待负责人本人采集，Nacos 配置中心没有启用。
+
+## 2026-09-30：任务 B 真实 MySQL 并发与故障注入
+
+- **执行结果**：可重复运行 `scripts/verify-mysql-concurrency.ps1 -MySqlExe <mysql.exe 路径>`（`BILLING_DB_PASSWORD` 只通过环境提供），8 路并发占位仅 1 成功/7 个 SPACE_UNAVAILABLE，8 路同窗预约仅 1 成功/7 个 RESERVATION_CONFLICT，8 路并发成功支付返回同一 paymentId 且 billing 自有库只有 1 条 SUCCESS 流水；脚本最后正常关闭记录。实际输出在忽略的 `target/local-runtime/mysql-concurrency.log`。真实 billing 停机后出账重试、space 停机后支付/释放恢复、月卡扣款后 billing 支付响应超时均已逐项注入并复核；步骤、具体 ID、故障窗口和断言见 `docs/mysql-fault-tests.md`，最终数据库摘要在 `target/local-runtime/mysql-fault-final-check.log`。
+- **修正的真实缺陷**：MySQL 并发支付原先 7/8 请求返回 500，原因是 REPEATABLE READ 事务旧快照看不见另一事务刚提交的支付流水。`billing-service/.../BillingService.java` 的已付流水查询改为 `FOR UPDATE` 当前读；原脚本不放宽断言重跑通过。billing 停机时，access 原先将出场意图保存但仍显示 `PARKED`，与本轮故障验收及状态语义不符。`access-service/.../AccessRepository.java` 在本地事务中原子保存出场意图并转 `EXIT_PENDING_PAYMENT`，`AccessService.java` 允许无账单的原意图重试；原有 access 测试加入停机后的状态与空 billId 断言。实际 MySQL 验证先返回 503，恢复后保留 1 行意图与 1 张账单。
+- **契约与模型**：HTTP 路径/DTO/金额单位/数据库表未改；`docs/api-contract.md` 明确待出账时 billId 可空。同步更新 PlantUML 03 状态图、08 出场设计顺序图、11 活动图及其 PNG；17 张源文件均已 `-checkonly` 通过。对应 UC-02、UC-03、UC-04、UC-05、UC-06；图号 03、08、11（任务 A 为图 13）。`README.md` 和 `docs/traceability.md` 已链接新证据。
+- **构建与剩余边界**：`./mvnw.cmd test` 在上述修正后重新运行，16 条测试、0 失败；access 与 billing 的 `package` 分别通过。故障注入使用真实 MySQL 单机与单实例服务，未证明跨机多实例、网络分区或真实支付网关。任务 C 的结果见本文件顶部；任务 A 的控制台实例截图仍等负责人初始化本机管理员密码。
 
 ## 用户当前目标
 
@@ -33,7 +62,7 @@
 
 - 根 Maven 多模块含 gateway 与五个独立服务；五个 MySQL schema 为 `parking_space`、`parking_access`、`parking_billing`、`parking_pass`、`parking_analytics`。费率/预付/月卡参数在各权威服务配置中，密码不在仓库。
 - 上次完整 `mvnw.cmd clean package` 为 14 条测试、0 失败；`frontend` 的 `npm run build` 通过。六个 Java 服务和前端曾在本机启动，详情见 `docs/code-audit.md`。
-- 真实 MySQL 顺序联调覆盖普通停车、预约预付、月卡、充电、异常出场、发票与日报；17 个 PlantUML 源文件已通过语法检查并生成 PNG。真实 Nacos、浏览器逐按钮验收、截图/录屏和课程报告尚未完成。
+- 当时真实 MySQL 顺序联调已覆盖普通停车、预约预付、月卡、充电、异常出场、发票与日报；17 个 PlantUML 源文件已通过语法检查并生成 PNG。当时真实 Nacos 与浏览器逐按钮验收尚未完成，其后续结果见本文件顶部；课程截图、录屏和报告仍由负责人完成。
 
 ## 9 月 26 日中断时的遗留改动（9 月 28 日已继续验证）
 
@@ -50,9 +79,9 @@
 
 ## 代码审查发现，下一位 agent 应优先处理
 
-1. **Nacos 实际注册发现。** 本机仍未验证 Nacos；准备实例后按 README 的 nacos profile 和空客户端 URL 配置联调，再更新部署图与报告。
-2. **实际故障注入。** 目前冻结后 billing 失败恢复由 mock 测试覆盖；进一步用 MySQL 真实服务验证断线、月卡扣款后支付超时、退款/释放失败再恢复。不要把顺序 smoke 当成所有故障的证明。
-3. **补齐浏览器全流程验收。** v2 已走普通入场→寻车→出账→失败支付→重新寻车恢复同账单→成功出场→发票及报表；预约/月卡/充电按钮仍应再逐项操作。旧版这些业务已有 MySQL API 证据。快捷入口只是导航，不是权限控制。
+1. **Nacos 实际注册发现（2026-09-30 更新）。** 服务端、六实例和网关链路已实测，详见本文件顶部。控制台实例列表截图仍待负责人初始化管理员密码后采集。
+2. **实际故障注入（2026-09-30 更新）。** billing/space 停机恢复及月卡扣款后支付超时已在真实 MySQL 复核，详见 `docs/mysql-fault-tests.md`；跨机网络分区和多实例故障尚未验证。
+3. **浏览器全流程验收（2026-09-30 更新）。** v2 已走普通入场→寻车→出账→失败支付→重新寻车恢复同账单→成功出场→发票及报表；预约/月卡/充电的新增逐项操作见本文件顶部。快捷入口只是导航，不是权限控制。
 4. **课程交付。** 负责人核对 17 个模型，补本人完整窗口截图、8～10 分钟带字幕录屏、Word 报告与 AI 附录。`docs/screenshots/qa-overview.png` 是 agent 在本人机器的浏览器 QA 实拍，不能代替课程规定的本人完整窗口截图。
 
 ## 最新运行和验证入口

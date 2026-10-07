@@ -2,11 +2,11 @@
 
 软件建模技术大作业第 14 题。负责人：姜苏豪（软件工程 24201718）。
 
-> 【AI-辅助】当前为可运行的业务实现与建模草案。五个独立 Spring 服务、网关与真实 MySQL 五库已完成主要业务联调；自动测试使用 H2 的 MySQL 兼容模式。真实 Nacos 注册发现、本人截图和报告仍待完成；详见 [联调记录](docs/code-audit.md)。
+> 【AI-辅助】当前为可运行的业务实现与建模草案。五个独立 Spring 服务、网关与真实 MySQL 五库已完成主要业务联调；自动测试使用 H2 的 MySQL 兼容模式。真实 Nacos API 六实例与网关服务发现已验证，控制台截图、本人截图和报告仍待完成；详见 [交接记录](docs/agent-handoff.md)。
 
 先读 [项目统一契约](AGENTS.md)、[业务规则](docs/decisions.md)、[API v1](docs/api-contract.md) 和 [用例规约](docs/use-cases.md)。
 
-下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。界面 v2 设计见 [界面基线](docs/ui-design.md)：机场导视配色、可点击车位示意图、车辆位置卡、票据式账单与结算进度，数据均来自真实服务。快捷入口用于导航，不是权限控制。
+下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。[界面设计记录](docs/ui-design.md) 包含机场导视配色、真实车位立体/平面示意、车辆位置卡、票据式账单、结算进度与动效取舍。快捷入口用于导航，不是权限控制。
 
 ## 模块与所有权
 
@@ -24,7 +24,7 @@
 
 ## 技术版本
 
-Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2。Maven 版本由项目包装器确定；具体依赖以根 pom.xml 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)，真实 Nacos 互通尚待联调。
+Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2。Maven 版本由项目包装器确定；具体依赖以根 pom.xml 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)；本机已用 Nacos 3.1.1 做服务发现联调，证据和边界见 [交接记录](docs/agent-handoff.md)。
 
 ## 本地 MySQL 启动
 
@@ -38,7 +38,7 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 ## Nacos 发现模式
 
-Nacos 就绪后，五个服务设置 NACOS_ENABLED=true、NACOS_SERVER_ADDR=实际地址；若要通过服务名发现，调用方把 SPACE_SERVICE_URL、BILLING_SERVICE_URL、PASS_SERVICE_URL、ACCESS_SERVICE_URL 设置为空值。网关用 --spring.profiles.active=nacos 启动，路由切换为 lb://服务名。先在 Nacos 控制台检查注册，再经网关验证业务接口。目前这一步还没有真实 Nacos 验证记录，不得在报告中写成已完成。
+五个服务与网关设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=实际地址`；调用方把 `SPACE_SERVICE_URL`、`BILLING_SERVICE_URL`、`PASS_SERVICE_URL`、`ACCESS_SERVICE_URL` 设置为空值。网关用 `--spring.profiles.active=nacos` 启动，路由切换为 `lb://服务名`。本机 Nacos 3.1.1 standalone 的客户端端口为 8848，控制台端口为 8080。2026-09-30 实测 Nacos API 返回六个健康实例，`./scripts/smoke-gateway.ps1` 全部通过，且经网关创建和取消预约成功（验证 pass 对 space 的 Feign 发现）；复现命令及控制台截图状态见 [交接记录](docs/agent-handoff.md)。未使用 Nacos 配置中心。
 
 ## 验证与演示
 
@@ -46,7 +46,8 @@ Nacos 就绪后，五个服务设置 NACOS_ENABLED=true、NACOS_SERVER_ADDR=实�
 - `npm run build` 检查前端。
 - 16 条现有后端测试均通过；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
-- [模型源文件](models/README.md)是可编辑 PlantUML 草案，17 张渲染图位于 `models/rendered/`；报告里的图、代码、截图应持续同步。课程所需真实 Nacos、至少 8 张本人截图和带字幕录屏仍需完成。
+- 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
+- [模型源文件](models/README.md)是可编辑 PlantUML 草案，17 张渲染图位于 `models/rendered/`；报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
 
 ## 协作约定
 

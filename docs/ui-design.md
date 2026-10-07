@@ -1,4 +1,12 @@
-# 界面设计基线 v2（【AI-辅助】）
+# 界面设计与验收记录（【AI-辅助】）
+
+## 2026-10-06：立体车位与动效方案（【AI-辅助】）
+
+- **数据边界**：现有 `space-service` 只提供车位楼层、区域、编号、类型和状态，没有车位坐标、朝向或建筑平面。立体图仍按真实数据分组，透视、道路和车位间距都是示意；不得把它称作机场建筑 3D 数字孪生。
+- **本次实施**：复用 `SpaceMap.vue`，增加立体/平面视角切换。立体视角用 CSS 透视、层高和阴影表现车位，选中与悬停只短暂移动；平面视角保留清晰的编号与状态。真实状态仍由 API 决定，不额外生成车位。车流柱图只增加一次入场动画及悬停反馈。动画遵循系统 `prefers-reduced-motion`，手机布局和键盘焦点不因视觉效果受损。
+- **ECharts 候选**：官方 [bar3D 示例](https://echarts.apache.org/examples/en/index.html)适合按楼层/时段比较占用量，不适合表达单个物理车位；[数据过渡](https://echarts.apache.org/handbook/en/how-to/animation/transition/)适合报表刷新，[动态排序柱状图](https://echarts.apache.org/handbook/en/how-to/chart-types/bar/bar-race/)需要连续历史数据。当前项目没有 `echarts`/`echarts-gl`，且 991 kB 前端主包已有体积提示；本次不引入新依赖。将来若负责人需要真正可旋转的 3D 车库，应先提供坐标/平面数据并批准 WebGL 依赖，再做独立、懒加载视图。
+- **动效依据**：MDN 建议优先动 `transform`/`opacity` 以减少布局与重绘成本，并尊重[减少动态效果设置](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion)。不使用持续旋转、闪烁或模拟实时更新。
+- **本机验证**：`frontend` 执行 `npm run build` 成功（主 JS 991.65 kB，仍有原有体积警告）；在真实 MySQL + 五服务 + gateway + Vite 页面看到连接 5/5、15 个真实车位。浏览器切到平面再切回立体，筛选 B2 并点选 C-001，状态、编号、位置详情一致；390px 视口 `documentWidth=375 <= viewport=390`，无横向溢出；页面控制台 error/warn 为空。未量化测得帧率，不把“流畅”写作性能基准结论。
 
 2026-09-28：负责人认为上一版界面缺少设计品质，本轮先记录改版规则，再实施。业务规则、DTO 与服务所有权仍以 AGENTS.md 和 api-contract.md 为准。
 
