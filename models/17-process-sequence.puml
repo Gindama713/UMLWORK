@@ -1,0 +1,75 @@
+@startuml
+title 图3-2 出场结算进程视图（服务级，AI-辅助）
+autonumber
+actor 车主
+participant "客户端" as client
+participant "gateway" as gateway
+participant "access-service" as access
+participant "pass-service" as pass
+participant "space-service" as space
+participant "billing-service" as billing
+
+车主 -> client : 申请出场(exitTime, exceptionType)
+client -> gateway : POST exit-requests + Idempotency-Key
+gateway -> access : 转发同一请求键
+activate access
+access -> pass : 核验预约/月卡权益
+pass --> access : 权益与预付快照
+access -> space : settlement(sessionId, 幂等键)
+space --> access : 冻结后的充电费用快照
+note over access : 本地事务保存 exit_intent；\n停车记录转 EXIT_PENDING_PAYMENT
+access -> billing : createBill(sessionId, 快照, 幂等键)
+alt billing 暂不可用
+  billing --> access : 调用失败
+  access --> gateway : 503 DEPENDENCY_UNAVAILABLE
+  gateway --> client : 提示稍后重试
+  client -> gateway : 同请求键、同内容重试
+  gateway -> access : 恢复原出场请求
+  note over access : 读取原 exit_intent；\n不重新计算权益或新建出场意图
+  access -> space : settlement(sessionId, 原幂等键)
+  space --> access : 原冻结费用快照
+  access -> billing : createBill(sessionId, 原快照, 同一账单幂等键)
+  note over billing : parkingSessionId 唯一约束；\n重试只返回同一张账单
+end
+billing --> access : billId、应付金额
+access -> access : 保存 billId，仍为 EXIT_PENDING_PAYMENT
+access --> gateway : 账单摘要
+gateway --> client : 展示待支付账单
+deactivate access
+
+车主 -> client : 完成出场(SUCCESS)
+client -> gateway : POST complete-exit + Idempotency-Key
+gateway -> access : 转发同一请求键
+activate access
+access -> billing : 查询账单支付状态
+billing --> access : UNPAID / PAID
+opt 月卡余额足够且账单未付
+  access -> pass : deduct(sessionId, 金额, 幂等键)
+  pass --> access : 扣费流水 / 余额不足则改模拟支付
+end
+opt 账单未付
+  access -> billing : pay(billId, 模拟结果/余额来源, 幂等键)
+  billing --> access : 支付结果；重试不重复成功扣费
+end
+alt 支付成功
+  access -> access : 本地状态 PAID_PENDING_RELEASE
+  opt 预约预付款有待退差额
+    access -> pass : refund-remainder(sessionId, 幂等键)
+    pass --> access : 原退款结果
+  end
+  access -> space : release(spaceId, sessionId, 幂等键)
+  alt 释放成功
+    space --> access : AVAILABLE
+    access -> access : 本地状态 CLOSED
+    access --> gateway : CLOSED
+  else 释放暂失败
+    space --> access : 调用失败
+    access --> gateway : PAID_PENDING_RELEASE
+    note over access,space : 同请求键重试仅重做退款/释放；\n跳过已成功支付，不二次扣费
+  end
+else 支付失败
+  access --> gateway : EXIT_PENDING_PAYMENT
+end
+gateway --> client : 展示最终或待恢复状态
+deactivate access
+@enduml
