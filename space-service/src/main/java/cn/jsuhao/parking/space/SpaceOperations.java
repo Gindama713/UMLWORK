@@ -12,8 +12,10 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 
 @Service
+@RefreshScope
 public class SpaceOperations {
     private static final Set<String> SPACE_TYPES = Set.of("NORMAL", "ACCESSIBLE", "CHARGING", "RESERVATION");
     private final JdbcTemplate jdbc;

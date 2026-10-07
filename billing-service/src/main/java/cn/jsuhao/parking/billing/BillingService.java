@@ -21,12 +21,10 @@ class BillingService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json = new ObjectMapper();
     private final ParkingPricing pricing;
-    private final PricingProperties rates;
 
-    BillingService(JdbcTemplate jdbc, ParkingPricing pricing, PricingProperties rates) {
+    BillingService(JdbcTemplate jdbc, ParkingPricing pricing) {
         this.jdbc = jdbc;
         this.pricing = pricing;
-        this.rates = rates;
     }
 
     @Transactional
@@ -52,7 +50,7 @@ class BillingService {
                 request.entryTime().toInstant().toEpochMilli(), request.exitTime().toInstant().toEpochMilli(),
                 amount.parkingBaseCents(), amount.discountCents(), amount.prepaidCents(),
                 amount.prepaidRefundCents(), amount.parkingDueCents(), amount.chargingCents(),
-                amount.exceptionCents(), amount.amountDueCents(), rates.version(), items);
+                amount.exceptionCents(), amount.amountDueCents(), amount.rateVersion(), items);
         List<BillView> bySession = jdbc.query("SELECT * FROM bill WHERE parking_session_id=?",
                 this::mapBill, request.parkingSessionId());
         if (bySession.isEmpty()) throw new ApiFailure("IDEMPOTENCY_CONFLICT", "Idempotency key belongs to another bill", 409);

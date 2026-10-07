@@ -2,6 +2,14 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-07：加分项核验与 Nacos 配置中心（本轮最新）
+
+- **B1 Compose 未实施**：本机 `docker` / `docker compose` 均不存在，Docker Desktop 安装目录也不存在；`wsl --status` 提示尚未安装 WSL。无法执行必需的 `docker compose up -d` 和六服务容器健康验收，故未提交 Docker 文件，不把它写成已完成。没有触碰 `.workbuddy-ai/` 或既有 `target/local-runtime/` 文件。
+- **B2 Sentinel 已回退**：用 BOM 管理的 `spring-cloud-starter-alibaba-sentinel`、Feign fallback 与可配置熔断规则做过真实 MySQL 试验。billing 停机时三次出场请求均为 503，`EXIT_PENDING_PAYMENT` 与唯一 `exit_intent` 保留；恢复后同键得到一张账单、一笔成功支付，原始输出 `target/local-runtime/sentinel-breaker-result.log`。但 `scripts/verify-mysql-concurrency.ps1` 的 8 路预约回归反复出现 1 个 200、其余多个 503，原断言要求 7 个 `409 RESERVATION_CONFLICT`；`target/local-runtime/pass-service-sentinel-trace.out.log` 指向 `feign.codec.DecodeException: 'messageConverters' must not be empty`（SpringDecoder）。按本任务“不得破坏一致性”的取舍，已撤销全部 B2 源码、依赖和测试改动，未提交 Sentinel；不要在报告写“已启用熔断”。诊断日志保留供后续定位版本兼容问题。
+- **B3 配置范围**：六个模块增加 BOM 管理的 Nacos Config 依赖，通过 `optional:nacos:<应用名>.properties` 导入 `DEFAULT_GROUP`；`config/nacos/` 提交 billing 16 项、space 2 项、pass 4 项演示基线，没有密码。原 application.yml 前缀、环境变量与本地默认值仍在。space/pass 的构造器 `@Value` 由 `@RefreshScope` 刷新；billing 每次出账从当前 Environment 绑定一份 `PricingProperties`，金额和 `rateVersion` 用同一快照写账单，已付历史不重算。对应 UC-03/04/05/06/09，部署图 13；接口路径/DTO/错误码、状态、表均未变化。
+- **B3 实测**：在 Nacos 8848 未运行时启动六个新 JAR，18080～18085 的 `/actuator/health` 全部 `UP`，`./scripts/smoke-gateway.ps1` 全部通过，输出在 `target/local-runtime/nacos-config-offline-smoke.log`。之后启动本机 Nacos 3.1.1，经其配置 API 发布三个示例 Data ID，服务日志出现 `Refresh keys changed`。`./scripts/verify-nacos-pricing-refresh.ps1` 将 `day-first-cents` 由 600 临时改为 650、版本改为 `v2-refresh-check`，不重启 billing，新账单由 1000 变 1050 分且版本同步变更，旧账单仍为 1000 分和 v1；脚本 `finally` 已恢复远端配置，输出在 `target/local-runtime/nacos-pricing-script-final.log`。space 充电单价 150→200 分/kWh 后，新 2 kWh 会话为 300→400 分，版本同步变化；pass 预约预付 500→700 分后，新预约金额变化，均未重启且已恢复演示基线；输出在 `target/local-runtime/nacos-value-refresh-result.log`。本轮 `./mvnw.cmd test` 为 16 条、0 失败（`target/local-runtime/nacos-config-mvn-test.log`）；原并发脚本五项检查恢复全绿，输出在 `target/local-runtime/nacos-config-concurrency.log`。
+- **仍需关注**：本轮配置中心通过 Nacos HTTP API 与实际服务验证，未采集控制台完整窗口截图；课程截图仍由姜苏豪本人采集。Nacos 客户端在受限沙箱中尝试将快照写到用户目录时有 `FileNotFoundException` 日志，但实际配置通知和业务热更新通过；普通本地环境可按日志核查快照目录权限。B1/B2 没有验收，不得在部署图画为已运行。
+
 ## 2026-10-06：车位立体示意与轻量动效
 
 - **范围与文件**：为 UC-01、UC-07 的车位展示修改 `frontend/src/components/SpaceMap.vue`、`frontend/src/style.css`；近 24 小时车流柱图只增加短时入场动画。先在 `docs/ui-design.md` 记录 ECharts GL、数据过渡、动态排序柱图的官方资料和取舍。没有新增依赖、接口、状态或数据库表；模型中的资源含义不变，对应车位资源模型与 UC-01/07 映射见 `docs/traceability.md`。

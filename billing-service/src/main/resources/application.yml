@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: billing-service
+  config:
+    import: optional:nacos:billing-service.properties
   datasource:
     url: ${BILLING_DB_URL:jdbc:mysql://127.0.0.1:3306/parking_billing?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${BILLING_DB_USER:root}
@@ -13,6 +15,8 @@ spring:
       mode: always
   cloud:
     nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}

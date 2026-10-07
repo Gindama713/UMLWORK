@@ -77,6 +77,8 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 
 space 与 billing 不调用其他业务服务；pass 只读查询 space；access 调 space、pass、billing；analytics 只读调 access。网关只路由。第一条垂直链先完成无预约普通车位的入场、寻车、出账、模拟支付和释放，再接入其余功能；尚未实现的接口不能写成已完成。
 
-2026-09-30 部署补充：接口路径、DTO、状态及错误语义不变。服务发现模式下，六个 Java 进程均以 `NACOS_ENABLED=true` 注册到同一 Nacos 3.1.1；四个 `*_SERVICE_URL` 置空后，access、pass、analytics 的 Feign 调用按服务名解析，网关 `nacos` profile 的 `lb://` 路由也按服务名解析。pass-service 必须含 Spring Cloud LoadBalancer（版本由根 BOM 管理），否则空 URL 的 Feign 客户端在启动时失败。该模式与默认固定本地地址模式使用同一组 HTTP 契约；Nacos 配置中心未接入。
+2026-09-30 部署补充：接口路径、DTO、状态及错误语义不变。服务发现模式下，六个 Java 进程均以 `NACOS_ENABLED=true` 注册到同一 Nacos 3.1.1；四个 `*_SERVICE_URL` 置空后，access、pass、analytics 的 Feign 调用按服务名解析，网关 `nacos` profile 的 `lb://` 路由也按服务名解析。pass-service 必须含 Spring Cloud LoadBalancer（版本由根 BOM 管理），否则空 URL 的 Feign 客户端在启动时失败。该模式与默认固定本地地址模式使用同一组 HTTP 契约。
+
+2026-10-07 配置补充：六个应用导入同名 Nacos `.properties` Data ID（`DEFAULT_GROUP`，`optional:nacos:`），本地 application.yml 保留兜底值；只同步业务配置，不把数据库密码、状态枚举或接口 DTO 放入 Nacos。计费、充电与预约的新记录可读取刷新后的参数，已生成账单与充电会话保留原规则版本快照。配置中心不改变上述 HTTP 错误语义。
 
 2026-09-28 补充：出场顺序为核验权益 → space 冻结充电费用 → billing 创建不可变账单。冻结记录存 space 自有库；冻结与开始充电使用同一车位行锁串行化，无消息队列或分布式事务。冻结后下游失败，可重试出账，不能再新增充电；释放后保留快照供审计。

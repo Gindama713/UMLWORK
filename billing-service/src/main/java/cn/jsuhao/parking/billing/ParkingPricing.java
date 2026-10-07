@@ -9,18 +9,29 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
 final class ParkingPricing {
     private static final ZoneId SHANGHAI = ZoneId.of("Asia/Shanghai");
-    private final PricingProperties rates;
+    private final Supplier<PricingProperties> currentRates;
 
     ParkingPricing(PricingProperties rates) {
-        this.rates = rates;
+        this.currentRates = () -> rates;
+    }
+
+    @Autowired
+    ParkingPricing(Environment environment) {
+        this.currentRates = () -> Binder.get(environment).bind("parking.pricing", PricingProperties.class)
+                .orElseThrow(() -> new IllegalStateException("Missing parking.pricing configuration"));
     }
 
     PriceBreakdown calculate(BillRequest request) {
+        PricingProperties rates = currentRates.get();
         if (request == null || request.entryTime() == null || request.exitTime() == null) {
             throw new IllegalArgumentException("entryTime and exitTime are required");
         }
@@ -47,7 +58,7 @@ final class ParkingPricing {
         }
 
         List<FeeItem> items = new ArrayList<>();
-        long base = parkingBase(entry, exit, items);
+        long base = parkingBase(entry, exit, items, rates);
         long discount = policy.discount(base);
         long discountedParking = Math.subtractExact(base, discount);
         long appliedPrepaid = Math.min(prepaid, discountedParking);
@@ -66,10 +77,10 @@ final class ParkingPricing {
         if (charging > 0) items.add(new FeeItem("CHARGING", charging, "充电费用"));
         long due = Math.addExact(Math.addExact(parkingDue, charging), exceptional);
         return new PriceBreakdown(base, discount, appliedPrepaid, refund, parkingDue, charging,
-                exceptional, due, List.copyOf(items));
+                exceptional, due, List.copyOf(items), rates.version());
     }
 
-    private long parkingBase(Instant entry, Instant exit, List<FeeItem> items) {
+    private long parkingBase(Instant entry, Instant exit, List<FeeItem> items, PricingProperties rates) {
         Instant cursor = entry.plus(Duration.ofMinutes(rates.freeMinutes()));
         if (!cursor.isBefore(exit)) return 0;
         long total = 0;
@@ -127,5 +138,5 @@ final class ParkingPricing {
 
     record PriceBreakdown(long parkingBaseCents, long discountCents, long prepaidCents,
             long prepaidRefundCents, long parkingDueCents, long chargingCents,
-            long exceptionCents, long amountDueCents, List<FeeItem> items) {}
+            long exceptionCents, long amountDueCents, List<FeeItem> items, String rateVersion) {}
 }

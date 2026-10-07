@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: analytics-service
+  config:
+    import: optional:nacos:analytics-service.properties
   datasource:
     url: ${ANALYTICS_DB_URL:jdbc:mysql://localhost:3306/parking_analytics?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${ANALYTICS_DB_USER:root}
@@ -13,6 +15,8 @@ spring:
       mode: always
   cloud:
     nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}

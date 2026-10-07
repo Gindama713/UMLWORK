@@ -19,9 +19,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RefreshScope
 class PassService {
     private static final String RESERVATION = "RESERVATION";
     private final JdbcTemplate jdbc;

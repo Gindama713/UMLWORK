@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: access-service
+  config:
+    import: optional:nacos:access-service.properties
   datasource:
     url: ${ACCESS_DB_URL:jdbc:mysql://localhost:3306/parking_access?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${ACCESS_DB_USER:root}
@@ -13,6 +15,8 @@ spring:
       mode: always
   cloud:
     nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}

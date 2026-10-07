@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: pass-service
+  config:
+    import: optional:nacos:pass-service.properties
   datasource:
     url: ${PASS_DB_URL:jdbc:mysql://127.0.0.1:3306/parking_pass?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${PASS_DB_USER:root}
@@ -13,6 +15,8 @@ spring:
       mode: always
   cloud:
     nacos:
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}

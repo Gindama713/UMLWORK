@@ -20,7 +20,7 @@
 | analytics-service | 车流量和报表快照 | 18085 | parking_analytics |
 | frontend | Vue 3 + Element Plus 演示页 | Vite 输出 | 无 |
 
-服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分，费率放在各权威服务的 application.yml，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 插入幂等演示车位。
+服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 插入幂等演示车位。
 
 ## 技术版本
 
@@ -36,9 +36,15 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 如果当前命令行找不到 mysql.exe，Windows MySQL 8.4 常见位置为 C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe。不要在命令行参数或 Git 文件中写数据库密码。
 
-## Nacos 发现模式
+## Nacos 服务发现与配置中心
 
-五个服务与网关设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=实际地址`；调用方把 `SPACE_SERVICE_URL`、`BILLING_SERVICE_URL`、`PASS_SERVICE_URL`、`ACCESS_SERVICE_URL` 设置为空值。网关用 `--spring.profiles.active=nacos` 启动，路由切换为 `lb://服务名`。本机 Nacos 3.1.1 standalone 的客户端端口为 8848，控制台端口为 8080。2026-09-30 实测 Nacos API 返回六个健康实例，`./scripts/smoke-gateway.ps1` 全部通过，且经网关创建和取消预约成功（验证 pass 对 space 的 Feign 发现）；复现命令及控制台截图状态见 [交接记录](docs/agent-handoff.md)。未使用 Nacos 配置中心。
+五个服务与网关设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=实际地址`；调用方把 `SPACE_SERVICE_URL`、`BILLING_SERVICE_URL`、`PASS_SERVICE_URL`、`ACCESS_SERVICE_URL` 设置为空值。网关用 `--spring.profiles.active=nacos` 启动，路由切换为 `lb://服务名`。本机 Nacos 3.1.1 standalone 的客户端端口为 8848，控制台端口为 8080。2026-09-30 实测六实例注册与网关发现，证据和控制台截图状态见 [交接记录](docs/agent-handoff.md)。
+
+六个模块通过 `spring.config.import=optional:nacos:<spring.application.name>.properties` 导入同名 Data ID（`DEFAULT_GROUP`），配置中心地址使用 `NACOS_SERVER_ADDR`。将 [config/nacos](config/nacos) 内三个示例文件分别以原文件名发布到 Nacos；它们只含 billing 的 16 项费率、space 的 2 项充电参数、pass 的 4 项预约/月卡参数，不含数据库密码。gateway、access、analytics 没有业务费率，允许对应 Data ID 暂不存在。本地 application.yml 保留相同前缀和默认值，Nacos 不可用时仍可启动。新建账单按当前配置生成费率版本与金额的同一快照，旧账单不重算；space/pass 的 `@Value` 参数由 `@RefreshScope` 在配置变更后重新注入。2026-10-07 的实际热更新和离线启动结果见交接记录。配置中心运行与服务发现可分别使用：`NACOS_ENABLED=false` 只关闭注册发现，不关闭可选配置导入。
+
+在项目根目录运行 `./scripts/verify-nacos-pricing-refresh.ps1` 可复核费率热更新；脚本要求 Nacos 中已经发布 v1 演示基线，测试结束会恢复原配置。它只创建新的模拟账单，不修改旧账单。
+
+本机没有 Docker/WSL，未验证 Compose 部署；Sentinel 曾在真实 MySQL 并发预约回归中引发 Feign 解码错误，已回退，当前不宣称启用熔断。
 
 ## 验证与演示
 
