@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 class AccessRepository {
@@ -55,6 +56,7 @@ class AccessRepository {
                         rs.getLong("prepaid_cents"), rs.getString("monthly_pass_id")), id).stream().findFirst();
     }
 
+    @Transactional
     ExitIntent reserveExit(String id, ExitIntent intent) {
         jdbc.update("""
                 INSERT INTO exit_intent(parking_session_id,exit_time,exception_type,operator_name,
@@ -62,6 +64,8 @@ class AccessRepository {
                 ON DUPLICATE KEY UPDATE parking_session_id=parking_session_id
                 """, id, utc(intent.exit()), intent.exceptionType(), intent.operator(), intent.benefitType(),
                 intent.prepaidCents(), intent.monthlyPassId());
+        jdbc.update("UPDATE parking_session SET status='EXIT_PENDING_PAYMENT' "
+                + "WHERE id=? AND status='PARKED' AND bill_id IS NULL", id);
         return exitIntent(id).orElseThrow();
     }
 
@@ -109,7 +113,7 @@ class AccessRepository {
                 UPDATE parking_session
                 SET exit_time=?,bill_id=?,exception_type=?,operator_name=?,monthly_pass_id=?,
                     status='EXIT_PENDING_PAYMENT'
-                WHERE id=? AND status='PARKED'
+                WHERE id=? AND status='EXIT_PENDING_PAYMENT' AND bill_id IS NULL
                 """, utc(exit), billId, exception, operator, monthlyPassId, id);
     }
 

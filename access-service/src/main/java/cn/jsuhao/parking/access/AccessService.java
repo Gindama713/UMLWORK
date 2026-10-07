@@ -139,7 +139,7 @@ class AccessService {
     ExitView requestExit(String id, ExitRequest input, String key) {
         requireKey(key);
         SessionRow session = get(id);
-        if (!session.status().equals("PARKED") && session.billId() == null)
+        if (!Set.of("PARKED", "EXIT_PENDING_PAYMENT").contains(session.status()) && session.billId() == null)
             throw failure("STATE_CONFLICT", HttpStatus.CONFLICT, "停车记录不能出账");
         if (input == null || input.exitTime() == null) throw invalid("出场时间必填");
         OffsetDateTime exit = input.exitTime().truncatedTo(java.time.temporal.ChronoUnit.MICROS);

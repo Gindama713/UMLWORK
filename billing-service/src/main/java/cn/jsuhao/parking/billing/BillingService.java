@@ -109,7 +109,7 @@ class BillingService {
         BillView bill = bills.getFirst();
         if (bill.status().equals("PAID")) {
             return jdbc.query("SELECT p.*, b.status AS bill_status FROM payment p JOIN bill b ON b.bill_id=p.bill_id "
-                    + "WHERE p.bill_id=? AND p.payment_status='SUCCESS' ORDER BY p.created_at LIMIT 1",
+                    + "WHERE p.bill_id=? AND p.payment_status='SUCCESS' ORDER BY p.created_at LIMIT 1 FOR UPDATE",
                     this::mapPayment, billId).getFirst();
         }
         String paymentId = UUID.randomUUID().toString();

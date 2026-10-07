@@ -88,6 +88,8 @@ class AccessServiceTest {
         String exitKey = UUID.randomUUID().toString();
         assertEquals("DEPENDENCY_UNAVAILABLE", assertThrows(ApiFailure.class, () -> service.requestExit(
                 first.parkingSessionId(), exitInput, exitKey)).code());
+        assertEquals("EXIT_PENDING_PAYMENT", service.locate("苏A12345").status());
+        assertEquals(null, service.locate("苏A12345").billId());
         assertEquals(exitInput.exitTime().toInstant(), service.locate("苏A12345").exitTime().toInstant());
         assertEquals("IDEMPOTENCY_CONFLICT", assertThrows(ApiFailure.class, () -> service.requestExit(
                 first.parkingSessionId(), new ExitRequest(entryTime.plusHours(3), "NONE", null), exitKey)).code());
