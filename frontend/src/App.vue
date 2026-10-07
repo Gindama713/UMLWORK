@@ -218,7 +218,8 @@ async function enter() {
   await action(async () => {
     const data = await api('/api/v1/access/entries', 'POST', {
       plateNumber: entry.plateNumber, spaceType: entry.spaceType,
-      reservationId: entry.reservationId || undefined, entryTime: iso(entry.entryTime),
+      reservationId: entry.spaceType === 'RESERVATION' ? entry.reservationId || undefined : undefined,
+      entryTime: iso(entry.entryTime),
     })
     await selectSession(data)
     await loadResources()
