@@ -96,8 +96,12 @@ h3 { font-size: 15px; margin: 25px 0 14px; }
 .map-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
 .floor-switch { display: flex; gap: 3px; padding: 3px; border: 1px solid #e7ebf0; background: #f4f6f9; border-radius: 7px; flex-wrap: wrap; }
 .floor-switch button { min-height: 30px; padding: 5px 13px; font-size: 11px; border: 0; color: #8290a2; background: transparent; border-radius: 5px; }.floor-switch button.selected { color: #253952; background: #fff; box-shadow: 0 1px 5px #1d325712; }
+.map-view-switch { display: flex; gap: 3px; padding: 3px; margin-left: auto; border: 1px solid #d9e2ed; background: #eaf0f7; border-radius: 7px; }
+.map-view-switch button { min-height: 30px; padding: 5px 11px; border: 0; border-radius: 5px; background: transparent; color: #687b93; font-size: 11px; }
+.map-view-switch button.selected { background: #263a55; color: #fff; }
 .map-legend { display: flex; gap: 12px; font-size: 9px; color: #8a94a3; }.map-legend span::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 2px; }.map-legend .available::before { background: #a8c35b; }.map-legend .occupied::before { background: #4d6386; }.map-legend .offline::before { background: #b2bac6; }
 .garage-canvas { position: relative; background: #f1f3f6; border: 1px solid #e8ecf0; border-radius: 9px; padding: 21px 18px 14px; overflow: hidden; }
+.garage-canvas.view-3d { background: radial-gradient(circle at 20% 0%, #fff 0, #f0f4f9 45%, #e4ebf2 100%); }
 .garage-sign { display: flex; align-items: center; gap: 8px; background: #263a55; color: #e8edf5; padding: 7px 10px; width: fit-content; font-size: 8px; letter-spacing: 1px; border-radius: 3px; margin: 0 0 24px; }.garage-sign .app-icon { width: 14px; height: 14px; }.sign-arrow { margin-left: 22px; font-size: 15px; color: var(--lime); }
 .garage-zones { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px 24px; }
 .parking-zone { min-width: 0; }
@@ -108,6 +112,14 @@ h3 { font-size: 15px; margin: 25px 0 14px; }
 .parking-bay.occupied { background: #e6ebf2; border-color: #b4c0d2; border-bottom-color: #61779a; color: #4d6387; }.parking-bay.occupied:hover { background: #d9e1ed; }.parking-bay.occupied small { color: #7c8ca4; }.parking-bay.occupied .bay-status-dot { background: #526987; }
 .parking-bay.out_of_service { background: repeating-linear-gradient(45deg,#e8ebef,#e8ebef 5px,#eef0f3 5px,#eef0f3 10px); border-color: #cbd0d9; color: #9ca7b7; }.parking-bay.out_of_service small { color: #939eae; }.parking-bay.out_of_service .bay-status-dot { background: #a8b1be; }
 .parking-bay.highlighted { outline: 2px solid #477df2; outline-offset: 2px; background: #e4ebfb; }.car-plan { width: 28px; height: 51px; margin-top: -2px; }.parking-bay:has(.car-plan) { gap: 3px; }
+.parking-bay { transition: transform .28s ease, background-color .2s ease; }
+.view-3d .parking-zone { perspective: 700px; }
+.view-3d .parking-bay { --bay-edge: #adc478; transform: rotateX(16deg) translateY(-3px); border-radius: 8px 8px 4px 4px; box-shadow: 0 9px 0 var(--bay-edge), 0 15px 18px #22344f2b; }
+.view-3d .parking-bay.occupied { --bay-edge: #7185a3; }
+.view-3d .parking-bay.out_of_service { --bay-edge: #b3bdc9; }
+.view-3d .parking-bay:hover, .view-3d .parking-bay:focus-visible { transform: rotateX(16deg) translateY(-9px); }
+.view-3d .parking-bay.highlighted { box-shadow: 0 9px 0 #6b8ed3, 0 16px 23px #2f58a95c; }
+.view-3d .car-plan { filter: drop-shadow(0 4px 2px #21334d55); }
 .zone-driveway { display: flex; align-items: center; justify-content: center; gap: 16px; height: 37px; color: #b0b9c7; }.zone-driveway span { height: 1px; flex: 1; border-top: 1px dashed #c1c9d4; }.zone-driveway .app-icon { width: 17px; height: 17px; }
 .garage-caption { margin-top: 2px; padding-top: 12px; border-top: 1px solid #e1e6ee; display: flex; gap: 6px; align-items: center; color: #8c98aa; font-size: 9px; }.garage-caption .app-icon { width: 13px; height: 13px; }
 .map-caption { font-size: 9px; line-height: 1.8; color: #919cac; margin: 13px 0 0; }
@@ -116,6 +128,9 @@ h3 { font-size: 15px; margin: 25px 0 14px; }
 .chart-summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 10px; color: #8b96a6; margin-bottom: 20px; }.chart-summary strong { font-family: Bahnschrift, "Segoe UI", sans-serif; font-size: 24px; font-weight: 500; color: #2e4261; margin: 0 6px; }
 .traffic-chart { display: flex; align-items: flex-end; gap: 5px; height: 145px; overflow-x: auto; padding: 12px 3px 0; background: repeating-linear-gradient(to top,transparent,transparent 35px,#edf0f5 36px,transparent 37px); }
 .traffic-column { flex: 1; min-width: 10px; height: 100%; position: relative; }.bar-track { height: calc(100% - 24px); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border-bottom: 1px solid #e1e7ef; }.traffic-bar { width: 70%; max-width: 28px; background: #d3dbea; border-radius: 3px 3px 0 0; min-height: 1px; }.traffic-bar.peak { background: #677faa; }.bar-value { color: #597198; font-size: 9px; }.traffic-column small { display: block; font-size: 8px; color: #9ca6b5; white-space: nowrap; margin-top: 8px; }
+.traffic-bar { transform-origin: bottom; animation: bar-rise .5s ease-out both; background: linear-gradient(180deg, #a8bada, #667fa7); }
+.traffic-bar.peak { background: linear-gradient(180deg, #dced98, #8daf58); }
+@keyframes bar-rise { from { transform: scaleY(0); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
 .empty-state { padding: 32px 10px; color: #929cad; text-align: center; font-size: 12px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); align-items: end; gap: 14px; margin: 22px 0; }.subform { border-top: 1px solid var(--line); padding-top: 20px; }

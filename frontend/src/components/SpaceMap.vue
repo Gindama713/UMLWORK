@@ -5,6 +5,7 @@ const props = defineProps({ spaces: { type: Array, required: true }, highlight: 
 const emit = defineEmits(['select'])
 const floor = ref('*')
 const selectedId = ref('')
+const perspective = ref(true)
 const floors = computed(() => [...new Set(props.spaces.map(space => space.floor))])
 const zones = computed(() => {
   const visible = props.spaces.filter(s => floor.value === '*' || s.floor === floor.value)
@@ -32,9 +33,13 @@ function select(space) { selectedId.value = space.spaceId; emit('select', space)
         <button :class="{ selected: floor === '*' }" :aria-pressed="floor === '*'" @click="floor = '*'">全场</button>
         <button v-for="item in floors" :key="item" :class="{ selected: item === floor }" :aria-pressed="item === floor" @click="floor = item">{{ item }}</button>
       </div>
+      <div class="map-view-switch" role="group" aria-label="车位图视角">
+        <button :class="{ selected: perspective }" :aria-pressed="perspective" @click="perspective = true">立体</button>
+        <button :class="{ selected: !perspective }" :aria-pressed="!perspective" @click="perspective = false">平面</button>
+      </div>
       <div class="map-legend"><span class="available">可用</span><span class="occupied">占用</span><span class="offline">停用</span></div>
     </div>
-    <div class="garage-canvas">
+    <div class="garage-canvas" :class="{ 'view-3d': perspective }">
       <div class="garage-sign"><AppIcon name="plane" /><span>AIRPORT PARKING</span><span class="sign-arrow">↗</span></div>
       <p v-if="!spaces.length" class="empty-state">暂无车位，请在资源管理中添加。</p>
       <div class="garage-zones">
