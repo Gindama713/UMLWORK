@@ -1,5 +1,5 @@
 @startuml
-title 核心服务设计类图（AI-辅助；字段与签名按实现）
+title access-service 设计类图（AI-辅助；字段与签名按实现）
 skinparam classAttributeIconSize 0
 
 package "access-service" {
@@ -50,7 +50,11 @@ package "access-service" {
   AccessService "1" --> "1" AccessPassClient : passes
   AccessService "1" --> "1" AccessBillingClient : billing
 }
+@enduml
 
+@startuml
+title billing-service 设计类图（AI-辅助；字段与签名按实现）
+skinparam classAttributeIconSize 0
 package "billing-service" {
   class BillingController {
     -billing: BillingService
@@ -71,6 +75,9 @@ package "billing-service" {
     ~calculate(request: BillRequest): PriceBreakdown
   }
   interface "ParkingPricing.BenefitPolicy" as BenefitPolicy <<private nested>> {
+    +discount(base: long): long
+  }
+  class "new BenefitPolicy() { ... }" as AnonymousBenefit <<anonymous class>> {
     +discount(base: long): long
   }
   class PricingProperties <<record>> {
@@ -95,14 +102,19 @@ package "billing-service" {
   BillingService "1" --> "1" ParkingPricing : pricing
   ParkingPricing ..> PricingProperties : bind current config
   ParkingPricing ..> BenefitPolicy : declares and uses nested interface
+  AnonymousBenefit ..|> BenefitPolicy : NONE case
   note right of BenefitPolicy
     ParkingPricing 内的 private interface。
-    switch 中 NONE 使用匿名类实现；
+    switch 中 NONE 使用图中的匿名类实现；
     RESERVATION 和 MONTHLY 使用 lambda 实现。
-    代码没有这三种策略的具名类。
+    代码没有这三种策略的具名类或独立文件。
   end note
 }
+@enduml
 
+@startuml
+title space-service 设计类图（AI-辅助；字段与签名按实现）
+skinparam classAttributeIconSize 0
 package "space-service" {
   class SpaceController {
     -operations: SpaceOperations
@@ -136,7 +148,11 @@ package "space-service" {
   ChargingController "1" --> "1" SpaceOperations : operations
   SpaceOperations "1" --> "1" Idempotency : idempotency
 }
+@enduml
 
+@startuml
+title pass-service 设计类图（AI-辅助；字段与签名按实现）
+skinparam classAttributeIconSize 0
 package "pass-service" {
   class PassController {
     -service: PassService
@@ -169,7 +185,11 @@ package "pass-service" {
   PassService "1" --> "1" IdempotencyStore : idempotency
   PassService "1" --> "1" PassSpaceClient : spaces, read only
 }
+@enduml
 
+@startuml
+title analytics-service 设计类图（AI-辅助；字段与签名按实现）
+skinparam classAttributeIconSize 0
 package "analytics-service" {
   class TrafficController {
     -service: TrafficService

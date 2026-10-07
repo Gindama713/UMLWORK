@@ -53,7 +53,7 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 - 16 条现有后端测试均通过；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
-- [模型源文件](models/README.md)是可编辑 PlantUML 草案，17 张渲染图位于 `models/rendered/`；报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
+- [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，22 张渲染图位于 `models/rendered/`；新增 17 号服务级出场进程顺序图，15 号源文件分别渲染五个服务的类图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
 
 ## 协作约定
 

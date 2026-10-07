@@ -15,7 +15,7 @@
 
 | 模板要求 | 现状 | 证据位置 |
 |---|---|---|
-| UML 图 ≥12 幅 | **17 幅**（源文件 + PNG） | `models/*.puml`、`models/rendered/` |
+| UML 图 ≥12 幅 | **18 份源文件、22 张 PNG**（15 号源文件按五服务分别渲染） | `models/*.puml`、`models/rendered/` |
 | 测试用例 ≥10 条 | **16 条自动测试** + 6 组真实 MySQL 并发/故障注入 | `*/src/test/`、`docs/mysql-fault-tests.md` |
 | 界面截图 ≥8 张（含标题栏） | ❌ **待本人采集** | agent 的 QA 实拍不能替代 |
 | 8～10 分钟带字幕录屏（含跨服务） | ❌ **待本人录制** | — |
@@ -56,7 +56,7 @@
 | 3.2 逻辑视图：微服务划分 | ✎ | 需新建**表3-1**（服务｜职责｜独立 schema｜端口）。现成数据：`README.md` §模块与所有权、`AGENTS.md` §4 |
 | 3.3 开发视图：工程结构与接口 | ✓ | 多模块工程结构树 + **表3-2 服务间接口清单**。接口清单现成：`docs/api-contract.md`（含 DTO、调用方、同步/异步）。需补 DTO 与实体隔离原则的说明段 |
 | 3.4 进程视图：服务交互 | ✓ | **图3-2** = `models/17-process-sequence.puml`，以服务为生命线，展示出场、出账失败后复用意图、支付及释放重试。`06/08/10` 是第 4 章的设计级顺序图。正文仍需说明幂等键+本地事务+补偿/重试的一致性策略 |
-| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。已按 2026-09-30 真实 Nacos 联调更新（六实例、:8848/:8080）。模板要求**与实际启动方式一致**——现在是固定地址模式与 Nacos 模式两种，需在正文说明 |
+| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。图中本机六个 Java 进程、MySQL 五库、Nacos 注册发现与可选配置中心均有实测；Compose 和 Sentinel 尚未部署。模板要求与实际启动方式一致，正文需说明固定地址模式与 Nacos 模式 |
 | 3.6 组件图 | ✓ | **图3-4** = `models/12-components.puml`，以提供/依赖接口表达服务组装 |
 | 3.7 数据库设计 | ✓ | **图3-5 起** = `models/16-service-er.puml`。需补关键表结构表，以及**禁止跨库 JOIN 下的数据冗余设计说明**（如 access 冗余车牌、billing 快照权益）及其理由 |
 
@@ -64,7 +64,7 @@
 
 | 节 | 状态 | 要点与证据 |
 |---|---|---|
-| 4.1 核心服务设计类图 | ✓ | **图4-1 起** = `models/15-design-classes.puml`。模板要求含属性类型、方法签名、关联/依赖/实现关系，**类图须标可见性（+/-/#）与多重性**——请核对源文件是否都有。另需「领域模型→设计类」演化说明（新增了哪些纯虚构类、控制器类） |
+| 4.1 核心服务设计类图 | ✓ | **图4-1～图4-5** 均来自 `models/15-design-classes.puml`，一服务一张图，含真实字段、方法签名、可见性、多重性及匿名 BenefitPolicy 实现关系。正文需说明「领域模型→设计类」的演化，例如控制器、服务类和纯虚构类 |
 | 4.2 GRASP 职责分配对照表 | ✎ **缺口** | 模板标注「**必备核心表，与评分直接挂钩**」，要求 **≥5 种模式**且**含控制器、多态、纯虚构**，并且**能定位到代码**。目前仓库中不存在此表。可定位的现成落点：多态→`billing-service/.../ParkingPricing.java`（普通/月卡/异常策略）；控制器→各服务 `*Controller.java`；纯虚构→`AccessService`、`SpaceOperations`、`IdempotencyStore`；信息专家→`BillingService`、`PassService`；低耦合→Feign 客户端 `ServiceClients.java` |
 | 4.3 设计级顺序图 | ✓ | **图4-x** = `models/06`、`08`、`10`。模板要求**与用例规约步骤编号对应** |
 | 4.4 协作图/通信图 | ✓ | **图4-x** = `models/14-communication.puml`，需与对应顺序图互为印证 |
@@ -96,7 +96,7 @@
 |---|---|---|
 | 7.1 用例实现情况对照表 | ✓ | 「用例/功能｜所属服务｜状态｜说明」。现成：`docs/traceability.md` 整表可直接改造 |
 | 7.2 建模过程反思 | 🔒 **本人原创** | 须有具体事例，禁空泛议论 |
-| 7.3 不足与改进设想 | ✎ | 2～3 条可操作项。真实素材：接入 Nacos 配置中心、引入 MQ 解耦、前端包拆分（991 kB）、补跨机故障注入 |
+| 7.3 不足与改进设想 | ✎ | 2～3 条可操作项。真实素材：Compose 一键部署待验证、Sentinel 兼容性问题待排查、前端包拆分（991 kB）、补跨机故障注入 |
 | 7.4 AI 工具使用总结与反思 | 🔒 **本人原创** | 须有具体事例，禁空泛议论 |
 
 ### 参考文献
@@ -128,13 +128,17 @@
 | 图3-3 | 部署图 | `13-deployment.puml` | 3.5 |
 | 图3-4 | 组件图 | `12-components.puml` | 3.6 |
 | 图3-5 | 服务 ER 图 | `16-service-er.puml` | 3.7 |
-| 图4-1 | 设计类图 | `15-design-classes.puml` | 4.1 |
-| 图4-2 | 设计顺序图（入场） | `06-entry-design-sequence.puml` | 4.3 |
-| 图4-3 | 设计顺序图（出场） | `08-exit-design-sequence.puml` | 4.3 |
-| 图4-4 | 设计顺序图（预约） | `10-reservation-design-sequence.puml` | 4.3 |
-| 图4-5 | 通信图 | `14-communication.puml` | 4.4 |
-| 图4-6 | 状态图（停车记录） | `03-parking-session-state.puml` | 4.5 |
-| 图4-7 | 状态图（预约） | `04-reservation-state.puml` | 4.5 |
+| 图4-1 | access 设计类图 | `15-design-classes.puml` → `15-design-classes.png` | 4.1 |
+| 图4-2 | billing 设计类图 | 同上 → `15-design-classes_001.png` | 4.1 |
+| 图4-3 | space 设计类图 | 同上 → `15-design-classes_002.png` | 4.1 |
+| 图4-4 | pass 设计类图 | 同上 → `15-design-classes_003.png` | 4.1 |
+| 图4-5 | analytics 设计类图 | 同上 → `15-design-classes_004.png` | 4.1 |
+| 图4-6 | 设计顺序图（入场） | `06-entry-design-sequence.puml` | 4.3 |
+| 图4-7 | 设计顺序图（出场） | `08-exit-design-sequence.puml` | 4.3 |
+| 图4-8 | 设计顺序图（预约） | `10-reservation-design-sequence.puml` | 4.3 |
+| 图4-9 | 通信图 | `14-communication.puml` | 4.4 |
+| 图4-10 | 状态图（停车记录） | `03-parking-session-state.puml` | 4.5 |
+| 图4-11 | 状态图（预约） | `04-reservation-state.puml` | 4.5 |
 
 未排入的：`09-reservation-ssd.puml`（可作图2-2/2-3 之后的第三张 SSD，或省略）。
 **每图必须先引用后出现，图题在图下方居中，并配至少一段语义解读——只贴图不解读按缺图计。**

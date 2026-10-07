@@ -2,7 +2,14 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
-## 2026-10-07：加分项核验与 Nacos 配置中心（本轮最新）
+## 2026-10-07：UML 规范修正与进程视图（最新）
+
+- **A1/A2/A3**：`models/15-design-classes.puml` 按各服务 Java 源码补真实字段类型、方法参数/返回类型和可见性（包内访问用 `~`），引用关系标多重性；`ParkingPricing.BenefitPolicy` 标为私有嵌套接口，真实 `NONE` 匿名类用 `..|>` 实现关系表示，两个 lambda 只在 note 中说明，没有虚构具名策略类；补 `analytics-service` 的 Controller、Service、Feign 客户端、records 和异常类，注明只读调用 access、自有 JDBC 只写 analytics 库。覆盖 UC-03/04/10 等；没有改代码、接口、状态、金额单位或数据库表。A1/A2/A3 分别提交 `99421df`、`d8647bf`、`d4db3d0`，最终匿名实现连线另见本轮渲染同步提交。
+- **A4**：`models/17-process-sequence.puml` 新增报告图 3-2，命线为客户端、网关及四个参与出场的业务服务；依次表现权益核验、充电费用冻结、`exit_intent` 与 `EXIT_PENDING_PAYMENT` 持久化、出账、支付、`PAID_PENDING_RELEASE`、释放与 `CLOSED`。billing 停机分支返回 503 并保留原意图，同键重试读取旧快照；释放失败分支跳过已付账单的再次支付。与代码 `AccessService.requestExit/completeExit` 和 `AccessRepository.reserveExit` 核对；未画 Sentinel 分支，因为 B2 已回退。`docs/report-outline.md` 的图号与缺口清单已更新，提交 `9cc6d26`。
+- **模型验收**：本机 VS Code 扩展内 PlantUML 1.2024.3 对 18 个 `.puml` 运行 `-checkonly`，退出码 0；同一工具渲染出 22 张 PNG（15 号一份源生成五张服务类图）。类图可见性行计数 91、多重性行计数 16、实现关系行计数 1，均非零；实际打开 `models/rendered/15-design-classes.png`、`15-design-classes_001.png`～`_004.png` 与 `17-process-sequence.png` 检查，未见文字截断或连线重叠。可复现命令：`$files=Get-ChildItem models -Filter '*.puml' | % FullName; java -jar <本机 plantuml.jar> -checkonly $files; java -jar <本机 plantuml.jar> -charset UTF-8 -tpng -o rendered $files`。报告图4-1～4-5 应分别引用这五张类图。
+- **边界**：本轮只修改模型和说明，后端验证沿用 B3 的 16 条自动测试、MySQL 并发脚本及网关烟测原始输出；未把模型更新说成新的运行联调。B1/B2 仍未通过，课程截图、录屏与原创章节仍由负责人完成。未推送远端。
+
+## 2026-10-07：加分项核验与 Nacos 配置中心
 
 - **B1 Compose 未实施**：本机 `docker` / `docker compose` 均不存在，Docker Desktop 安装目录也不存在；`wsl --status` 提示尚未安装 WSL。无法执行必需的 `docker compose up -d` 和六服务容器健康验收，故未提交 Docker 文件，不把它写成已完成。没有触碰 `.workbuddy-ai/` 或既有 `target/local-runtime/` 文件。
 - **B2 Sentinel 已回退**：用 BOM 管理的 `spring-cloud-starter-alibaba-sentinel`、Feign fallback 与可配置熔断规则做过真实 MySQL 试验。billing 停机时三次出场请求均为 503，`EXIT_PENDING_PAYMENT` 与唯一 `exit_intent` 保留；恢复后同键得到一张账单、一笔成功支付，原始输出 `target/local-runtime/sentinel-breaker-result.log`。但 `scripts/verify-mysql-concurrency.ps1` 的 8 路预约回归反复出现 1 个 200、其余多个 503，原断言要求 7 个 `409 RESERVATION_CONFLICT`；`target/local-runtime/pass-service-sentinel-trace.out.log` 指向 `feign.codec.DecodeException: 'messageConverters' must not be empty`（SpringDecoder）。按本任务“不得破坏一致性”的取舍，已撤销全部 B2 源码、依赖和测试改动，未提交 Sentinel；不要在报告写“已启用熔断”。诊断日志保留供后续定位版本兼容问题。
