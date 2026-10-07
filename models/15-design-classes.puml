@@ -1,71 +1,166 @@
 @startuml
-title 核心服务设计类图（AI-辅助，与代码类名对应）
-hide empty members
+title 核心服务设计类图（AI-辅助；字段与签名按实现）
+skinparam classAttributeIconSize 0
+
 package "access-service" {
-  class AccessController
+  class AccessController {
+    -service: AccessService
+    ~enter(request: EntryRequest, key: String): Envelope<SessionView>
+    ~locate(plateNumber: String): Envelope<SessionView>
+    ~requestExit(sessionId: String, request: ExitRequest, key: String): Envelope<ExitView>
+    ~complete(sessionId: String, request: CompleteRequest, key: String): Envelope<CompleteView>
+  }
   class AccessService {
-    enter()
-    requestExit()
-    completeExit()
-    locate()
+    -repo: AccessRepository
+    -spaces: SpaceClient
+    -billing: BillingClient
+    -passes: PassClient
+    ~enter(input: EntryRequest, key: String): SessionView
+    ~locate(rawPlate: String): SessionView
+    ~requestExit(id: String, input: ExitRequest, key: String): ExitView
+    ~completeExit(id: String, input: CompleteRequest, key: String): CompleteView
   }
   class AccessRepository {
-    insert()
-    chooseSpace()
-    exitRequested()
-    paid()
-    closed()
+    -jdbc: JdbcTemplate
+    -mapper: RowMapper<SessionRow>
+    ~insert(id: String, plate: String, type: String, reservationId: String, entry: OffsetDateTime, key: String, payload: String): void
+    ~chooseSpace(id: String, space: SpaceView): void
+    ~reserveExit(id: String, intent: ExitIntent): ExitIntent
+    ~exitRequested(id: String, exit: OffsetDateTime, billId: String, exception: String, operator: String, monthlyPassId: String): void
+    ~paid(id: String): void
+    ~closed(id: String): void
   }
-  interface SpaceClient
-  interface PassClient
-  interface BillingClient
-  AccessController --> AccessService
-  AccessService --> AccessRepository
-  AccessService --> SpaceClient
-  AccessService --> PassClient
-  AccessService --> BillingClient
+  interface "SpaceClient" as AccessSpaceClient {
+    +occupy(spaceId: String, key: String, body: SessionRef): Envelope<SpaceView>
+    +release(spaceId: String, key: String, body: SessionRef): Envelope<SpaceView>
+    +settle(spaceId: String, key: String, body: SessionRef): Envelope<ChargingFees>
+  }
+  interface "PassClient" as AccessPassClient {
+    +eligibility(plate: String, entry: String, exit: String, spaceType: String, parkingSessionId: String): Envelope<BenefitView>
+    +deduct(id: String, key: String, body: DeductionRequest): Envelope<Object>
+  }
+  interface "BillingClient" as AccessBillingClient {
+    +createBill(key: String, body: BillRequest): Envelope<BillView>
+    +bill(billId: String): Envelope<BillView>
+    +pay(billId: String, key: String, body: PaymentRequest): Envelope<PaymentView>
+  }
+  AccessController "1" --> "1" AccessService : service
+  AccessService "1" --> "1" AccessRepository : repo
+  AccessService "1" --> "1" AccessSpaceClient : spaces
+  AccessService "1" --> "1" AccessPassClient : passes
+  AccessService "1" --> "1" AccessBillingClient : billing
 }
+
 package "billing-service" {
-  class BillingController
+  class BillingController {
+    -billing: BillingService
+    ~createBill(request: BillRequest, key: String, http: HttpServletRequest): ApiResponse<BillView>
+    ~internalPay(billId: String, request: PaymentRequest, key: String, http: HttpServletRequest): ApiResponse<PaymentView>
+    ~invoice(billId: String, request: InvoiceRequest, key: String, http: HttpServletRequest): ApiResponse<InvoiceView>
+  }
   class BillingService {
-    createBill()
-    pay()
-    requestInvoice()
+    -jdbc: JdbcTemplate
+    -json: ObjectMapper
+    -pricing: ParkingPricing
+    ~createBill(request: BillRequest, key: String): BillView
+    ~pay(billId: String, request: PaymentRequest, key: String, allowMonthly: boolean): PaymentView
+    ~requestInvoice(billId: String, request: InvoiceRequest, key: String): InvoiceView
   }
   class ParkingPricing {
-    calculate()
+    -currentRates: Supplier<PricingProperties>
+    ~calculate(request: BillRequest): PriceBreakdown
   }
   interface BenefitPolicy {
-    discount(base)
+    +discount(base: long): long
   }
-  class PricingProperties
-  BillingController --> BillingService
-  BillingService --> ParkingPricing
-  ParkingPricing --> PricingProperties
-  ParkingPricing --> BenefitPolicy : 三种策略
+  class PricingProperties <<record>> {
+    -version: String
+    -freeMinutes: int
+    -daytimeStart: LocalTime
+    -daytimeEnd: LocalTime
+    -dayFirstMinutes: int
+    -dayFirstCents: long
+    -dayStepMinutes: int
+    -dayStepCents: long
+    -nightStepMinutes: int
+    -nightStepCents: long
+    -dailyCapCents: long
+    -reservationDiscountBps: int
+    -monthlyDiscountBps: int
+    -lostCardCents: long
+    -longStayHours: long
+    -longStaySurchargeBps: int
+  }
+  BillingController "1" --> "1" BillingService : billing
+  BillingService "1" --> "1" ParkingPricing : pricing
+  ParkingPricing ..> PricingProperties : bind current config
+  ParkingPricing ..> BenefitPolicy : use strategy
 }
+
 package "space-service" {
-  class SpaceController
-  class ChargingController
-  class SpaceOperations {
-    occupy()
-    release()
-    settle()
-    startCharging()
-    finishCharging()
+  class SpaceController {
+    -operations: SpaceOperations
+    +occupy(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
+    +release(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
+    +settle(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<ChargingFeeView>
   }
-  class Idempotency
-  SpaceController --> SpaceOperations
-  ChargingController --> SpaceOperations
-  SpaceOperations --> Idempotency
+  class ChargingController {
+    -operations: SpaceOperations
+    +start(key: String, request: StartRequest): ApiResponse<ChargingView>
+    +finish(id: String, key: String, request: FinishRequest): ApiResponse<ChargingView>
+  }
+  class SpaceOperations {
+    -jdbc: JdbcTemplate
+    -idempotency: Idempotency
+    -rateVersion: String
+    -rateCentsPerKwh: long
+    +occupy(spaceId: String, parkingSessionId: String, key: String): SpaceView
+    +release(spaceId: String, parkingSessionId: String, key: String): SpaceView
+    +settle(spaceId: String, parkingSessionId: String, key: String): ChargingFeeView
+    +startCharging(chargerId: String, parkingSessionId: String, startTime: String, key: String): ChargingView
+    +finishCharging(chargingId: String, endTime: String, energyKwh: BigDecimal, key: String): ChargingView
+  }
+  class Idempotency {
+    -jdbc: JdbcTemplate
+    -transactions: TransactionTemplate
+    -json: ObjectMapper
+    +run<T>(key: String, operation: String, signature: String, resultType: Class<T>, action: Supplier<T>): T
+  }
+  SpaceController "1" --> "1" SpaceOperations : operations
+  ChargingController "1" --> "1" SpaceOperations : operations
+  SpaceOperations "1" --> "1" Idempotency : idempotency
 }
+
 package "pass-service" {
-  class PassController
-  class PassService
-  class IdempotencyStore
-  interface "SpaceClient（只读）" as PassSpaceClient
-  PassController --> PassService
-  PassService --> IdempotencyStore
-  PassService --> PassSpaceClient
+  class PassController {
+    -service: PassService
+    ~reserve(key: String, request: CreateReservation): ApiResponse<ReservationView>
+    ~pay(id: String, key: String, request: SimulatedPayment): ApiResponse<ReservationPaymentView>
+    ~createMonthly(key: String, request: CreateMonthlyPass): ApiResponse<MonthlyPassView>
+  }
+  class PassService {
+    -jdbc: JdbcTemplate
+    -spaces: SpaceClient
+    -idempotency: IdempotencyStore
+    -prepaidCents: long
+    -initialBalanceCents: long
+    -paymentHoldMinutes: int
+    -monthlyDurationDays: int
+    ~reserve(key: String, request: CreateReservation): ReservationView
+    ~eligibility(plateNumber: String, entryTime: OffsetDateTime, exitTime: OffsetDateTime, spaceType: String, parkingSessionId: String): EligibilityView
+    ~createMonthly(key: String, request: CreateMonthlyPass): MonthlyPassView
+    ~deduct(key: String, id: String, request: Deduction): DeductionView
+  }
+  class IdempotencyStore {
+    -jdbc: JdbcTemplate
+    -json: ObjectMapper
+    ~execute<T>(key: String, operation: String, fingerprint: String, type: Class<T>, action: Supplier<T>): T
+  }
+  interface "SpaceClient" as PassSpaceClient {
+    +spaces(type: String): ApiResponse<List<SpaceView>>
+  }
+  PassController "1" --> "1" PassService : service
+  PassService "1" --> "1" IdempotencyStore : idempotency
+  PassService "1" --> "1" PassSpaceClient : spaces, read only
 }
 @enduml
