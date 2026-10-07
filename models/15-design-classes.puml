@@ -169,4 +169,67 @@ package "pass-service" {
   PassService "1" --> "1" IdempotencyStore : idempotency
   PassService "1" --> "1" PassSpaceClient : spaces, read only
 }
+
+package "analytics-service" {
+  class TrafficController {
+    -service: TrafficService
+    ~traffic(from: OffsetDateTime, to: OffsetDateTime, granularity: String): Envelope<TrafficReport>
+    ~preview(from: OffsetDateTime, to: OffsetDateTime, granularity: String): Envelope<TrafficReport>
+    ~saved(id: String): Envelope<TrafficReport>
+  }
+  class TrafficService {
+    -access: AccessTrafficClient
+    -jdbc: JdbcTemplate
+    ~generate(from: OffsetDateTime, to: OffsetDateTime, granularity: String): TrafficReport
+    ~preview(from: OffsetDateTime, to: OffsetDateTime, granularity: String): TrafficReport
+    ~saved(id: String): TrafficReport
+  }
+  interface AccessTrafficClient {
+    +sessions(from: String, to: String): Envelope<List<TrafficSession>>
+  }
+  class "Envelope<T>" as TrafficEnvelope <<record>> {
+    -code: String
+    -message: String
+    -data: T
+    -requestId: String
+    ~ok<T>(data: T): Envelope<T>
+  }
+  class TrafficSession <<record>> {
+    -parkingSessionId: String
+    -entryTime: OffsetDateTime
+    -exitTime: OffsetDateTime
+    -status: String
+  }
+  class TrafficBucket <<record>> {
+    -start: OffsetDateTime
+    -count: int
+  }
+  class TrafficReport <<record>> {
+    -reportId: String
+    -from: OffsetDateTime
+    -to: OffsetDateTime
+    -granularity: String
+    -buckets: List<TrafficBucket>
+    -peakBucket: TrafficBucket
+    -totalEntries: int
+  }
+  class TrafficFailure {
+    ~code: String
+    ~status: HttpStatus
+  }
+  class TrafficErrors {
+    -log: Logger
+    ~business(error: TrafficFailure): ResponseEntity<Envelope<Void>>
+    ~invalid(error: Exception): ResponseEntity<Envelope<Void>>
+    ~database(error: DataAccessException): ResponseEntity<Envelope<Void>>
+  }
+  TrafficController "1" --> "1" TrafficService : service
+  TrafficService "1" --> "1" AccessTrafficClient : Feign, read only
+  TrafficReport "1" --> "0..*" TrafficBucket : buckets
+  TrafficErrors ..> TrafficFailure : handles
+  note right of TrafficService
+    jdbc 仅写 analytics-service 自有报表库；
+    原始车流记录仅通过 AccessTrafficClient 只读获取。
+  end note
+}
 @enduml
