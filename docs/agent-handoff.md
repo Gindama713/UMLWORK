@@ -1,8 +1,15 @@
-# Agent 交接记录（2026-10-06，当前可接手）
+# Agent 交接记录（2026-10-08，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
-## 2026-10-07：UML 规范修正与进程视图（最新）
+## 2026-10-08：Redis 已保存报表缓存（最新）
+
+- **范围与边界**：UC-10 的 `analytics-service` 增加 `SavedReportCache`，仅对 `GET /api/v1/analytics/traffic-reports/{id}` 做 Redis 读穿缓存；`traffic-preview` 不缓存。`traffic_report` / `traffic_bucket` 的 MySQL 仍为权威存储，缓存写入发生在成功读库后；Redis 出错只记日志并回源，不改变 HTTP 契约、状态或表。键前缀 `parking:analytics:report:v1:`、TTL 默认 1 小时，地址/超时/密码均从环境变量配置，仓库不含真实密码。新增 `spring-boot-starter-data-redis` 提供 Lettuce 与 `StringRedisTemplate`；新增 BOM 管理的 `jackson-datatype-jsr310` 保证 `OffsetDateTime` JSON 往返保持偏移量。模型同步到图 12、13、15（analytics 那张）。
+- **真实 Redis 与 MySQL 证据**：本机 Redis `127.0.0.1:6379`、版本 3.2.100，使用环境变量密码认证后 `PING=PONG`。隔离端口 19085 的新版 analytics 查询已有报表 `f3a483da-1e1c-471e-84b1-236292c0d099` 两次，均返回 `OK`、`totalEntries=10`；Redis `EXISTS parking:analytics:report:v1:<id>` 返回 1，`TTL` 返回 3582 秒。隔离端口 19086 指向不可用 Redis 端口 6399，`/actuator/health=UP`，同报表仍返回 `OK`/10，日志有读写缓存失败并回源的记录。隔离端口 19087 将 MySQL 指向不可用 3307 且关闭 SQL 初始化，已缓存报表仍返回 `OK`/10；未缓存 ID 返回 HTTP 503、`DEPENDENCY_UNAVAILABLE`，证明没有假成功。三只临时 Java 进程测试后已停止；原始日志在忽略目录 `target/local-runtime/analytics-redis*.log`、`analytics-mysql-down-cache-hit.*.log`。
+- **测试与运行**：`./mvnw.cmd -pl analytics-service -am test` 为 3 条、0 失败；`./mvnw.cmd test` 全模块 18 条、0 失败，输出 `target/local-runtime/redis-analytics-tests.log` 与 `redis-full-mvn-test.log`。`SavedReportCacheTest` 覆盖带时区的 JSON 往返和 Redis 故障视为未命中；`TrafficServiceTest` 覆盖命中缓存后无需 MySQL 行。启动 analytics 前设置 `REDIS_PASSWORD`，必要时设置 `REDIS_HOST`、`REDIS_PORT`、`ANALYTICS_REDIS_TTL`，其余默认见 application.yml。本轮未推送远端。
+- **给 Compose agent**：B1 仍未在本仓库验收。若在虚拟机编排 Redis，应把 analytics 的 `REDIS_HOST` 指向 Compose 服务名，并从未提交的 `.env` 注入 `REDIS_PASSWORD`；不要把本机 `127.0.0.1` 当成容器内 Redis 地址。此处仅是对接说明，不能据此宣称 Compose 已通过。
+
+## 2026-10-07：UML 规范修正与进程视图
 
 - **A1/A2/A3**：`models/15-design-classes.puml` 按各服务 Java 源码补真实字段类型、方法参数/返回类型和可见性（包内访问用 `~`），引用关系标多重性；`ParkingPricing.BenefitPolicy` 标为私有嵌套接口，真实 `NONE` 匿名类用 `..|>` 实现关系表示，两个 lambda 只在 note 中说明，没有虚构具名策略类；补 `analytics-service` 的 Controller、Service、Feign 客户端、records 和异常类，注明只读调用 access、自有 JDBC 只写 analytics 库。覆盖 UC-03/04/10 等；没有改代码、接口、状态、金额单位或数据库表。A1/A2/A3 分别提交 `99421df`、`d8647bf`、`d4db3d0`，最终匿名实现连线另见本轮渲染同步提交。
 - **A4**：`models/17-process-sequence.puml` 新增报告图 3-2，命线为客户端、网关及四个参与出场的业务服务；依次表现权益核验、充电费用冻结、`exit_intent` 与 `EXIT_PENDING_PAYMENT` 持久化、出账、支付、`PAID_PENDING_RELEASE`、释放与 `CLOSED`。billing 停机分支返回 503 并保留原意图，同键重试读取旧快照；释放失败分支跳过已付账单的再次支付。与代码 `AccessService.requestExit/completeExit` 和 `AccessRepository.reserveExit` 核对；未画 Sentinel 分支，因为 B2 已回退。`docs/report-outline.md` 的图号与缺口清单已更新，提交 `9cc6d26`。

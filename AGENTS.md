@@ -1,6 +1,6 @@
 # 机场智慧停车与出行服务平台：项目统一契约
 
-> 版本：1.0（2026-09-25，实施基线）
+> 版本：1.1（2026-10-08，新增可选 Redis 报表缓存；业务契约沿用 2026-09-25 实施基线）
 > 负责人：软件工程 24201718 姜苏豪  
 > 课程：软件建模技术大作业，第 14 题  
 > 本文件约束本项目中工作的所有人和 AI agent。课程原件为 `大作业题目说明.pdf` 与 `软件建模技术大作业报告模板.docx`；如本文件与课程原件冲突，以课程原件为准，并先修订本文件。
@@ -101,7 +101,7 @@
 | `pass-service` | 未来预约时间窗、月卡、车辆绑定与权益核验 | 只读查询车位列表；预约冲突由本服务自己的数据库串行化判断 |
 | `analytics-service` | 车流量、高峰时段、报表 | 各服务提供的只读接口/业务事件 |
 
-基础设施：`gateway` 统一接入，Nacos 当前用于服务注册；服务间同步调用采用 OpenFeign。配置目前来自环境变量和本地配置，未接入 Nacos 配置中心前不得在报告宣称已使用。MySQL 每服务独立 schema，建议 `parking_space`、`parking_access`、`parking_billing`、`parking_pass`、`parking_analytics`。服务不得直接读写另一服务的表，也不得跨库 JOIN。`analytics-service` 调 access 只读接口取得数据，不能连接其他服务数据库。消息队列为选做，若未接入，报告与部署图不能画成已运行。
+基础设施：`gateway` 统一接入，Nacos 用于服务注册与可选配置中心（本地配置仍兜底）；服务间同步调用采用 OpenFeign。MySQL 每服务独立 schema，建议 `parking_space`、`parking_access`、`parking_billing`、`parking_pass`、`parking_analytics`。服务不得直接读写另一服务的表，也不得跨库 JOIN。`analytics-service` 调 access 只读接口取得数据，不能连接其他服务数据库。Redis 仅作为 analytics-service 已保存报表的可选只读缓存；MySQL 仍是报表权威存储，Redis 不可用时必须回源 MySQL，实时预览不缓存。Redis 不得保存车位占用、出场意图、账单或支付的权威状态。消息队列为选做，若未接入，报告与部署图不能画成已运行。
 
 **跨服务主流程**（报告与录屏至少覆盖一次）：
 

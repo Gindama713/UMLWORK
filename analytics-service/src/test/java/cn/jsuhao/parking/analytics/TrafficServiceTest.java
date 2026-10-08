@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
@@ -25,6 +27,7 @@ class TrafficServiceTest {
     @Autowired TrafficService service;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean AccessTrafficClient access;
+    @MockitoBean SavedReportCache cache;
 
     @Test
     void reportCountsEntriesAndSavedSnapshotMatches() {
@@ -48,5 +51,15 @@ class TrafficServiceTest {
         assertEquals(2, report.peakBucket().count());
         assertEquals(2, report.buckets().size());
         assertEquals(report.buckets(), service.saved(report.reportId()).buckets());
+        verify(cache).put(argThat(saved -> report.reportId().equals(saved.reportId())));
+    }
+
+    @Test
+    void savedReportCacheHitDoesNotRequireMysqlRow() {
+        var from = OffsetDateTime.parse("2026-10-01T08:00:00+08:00");
+        var cached = new TrafficReport("cached-only", from, from.plusHours(1), "HOUR",
+                List.of(new TrafficBucket(from, 2)), new TrafficBucket(from, 2), 2);
+        when(cache.find("cached-only")).thenReturn(cached);
+        assertEquals(cached, service.saved("cached-only"));
     }
 }

@@ -8,6 +8,7 @@ component "space-service" as space
 component "pass-service" as pass
 component "billing-service" as billing
 component "analytics-service" as analytics
+component "Redis 报表缓存（可选）" as redis
 database "parking_access" as dba
 database "parking_space" as dbs
 database "parking_pass" as dbp
@@ -24,6 +25,7 @@ access --> pass : OpenFeign
 access --> billing : OpenFeign
 pass --> space : OpenFeign 只读
 analytics --> access : OpenFeign 只读
+analytics ..> redis : 已保存报表读穿缓存
 access --> dba
 space --> dbs
 pass --> dbp
@@ -31,5 +33,6 @@ billing --> dbb
 analytics --> dban
 note bottom
 数据库均为独立 schema；服务之间不跨库 JOIN。
+Redis 仅缓存 analytics 的已保存报表，MySQL 仍为权威存储。
 end note
 @enduml

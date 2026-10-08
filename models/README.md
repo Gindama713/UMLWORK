@@ -4,4 +4,6 @@
 
 2026-10-07 已用本机 PlantUML 1.2024.3 对全部 18 个 `.puml` 源文件执行 `-checkonly`，并从同一源文件生成 `rendered/` 下的 22 张 PNG（15 号一份源产生五张图）；实际打开 15 号的五张类图和 17 号进程图核对文字与连线。负责人仍需逐图审核业务语义，补报告图题、正文引用和“模型—代码—测试”解释；图中任何与代码或数据库不一致的文字先修订源文件，再更新报告。13 号部署图画的是已验证的本机 Java 进程、Nacos 注册发现及可选配置中心；Docker Compose 与 Sentinel 未部署，图中也未启用。
 
+2026-10-08 已将 analytics 的可选 Redis 报表缓存同步到组件图 12、部署图 13 和设计类图 15，并重新检查语法、渲染及打开对应 PNG；MySQL 仍是报表权威存储。
+
 在项目根目录可用 `java -jar plantuml.jar -checkonly "models/*.puml"` 检查语法，再用 `java -jar plantuml.jar -charset UTF-8 -tpng -o rendered "models/*.puml"` 重建图片。`plantuml.jar` 可使用本机 VS Code PlantUML 扩展附带的版本；图片是源文件的派生产物。

@@ -75,6 +75,8 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 
 ## 服务依赖及开发范围
 
+2026-10-08 实现补充：`analytics-service` 的已保存报表查询可从 Redis 读取不可变快照，未命中或 Redis 不可用时回源本服务 MySQL；实时 `traffic-preview` 不缓存。HTTP 路径、DTO、状态和错误码不变，Redis 不承担权威存储。
+
 space 与 billing 不调用其他业务服务；pass 只读查询 space；access 调 space、pass、billing；analytics 只读调 access。网关只路由。第一条垂直链先完成无预约普通车位的入场、寻车、出账、模拟支付和释放，再接入其余功能；尚未实现的接口不能写成已完成。
 
 2026-09-30 部署补充：接口路径、DTO、状态及错误语义不变。服务发现模式下，六个 Java 进程均以 `NACOS_ENABLED=true` 注册到同一 Nacos 3.1.1；四个 `*_SERVICE_URL` 置空后，access、pass、analytics 的 Feign 调用按服务名解析，网关 `nacos` profile 的 `lb://` 路由也按服务名解析。pass-service 必须含 Spring Cloud LoadBalancer（版本由根 BOM 管理），否则空 URL 的 Feign 客户端在启动时失败。该模式与默认固定本地地址模式使用同一组 HTTP 契约。

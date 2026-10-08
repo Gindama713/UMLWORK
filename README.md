@@ -24,7 +24,7 @@
 
 ## 技术版本
 
-Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2。Maven 版本由项目包装器确定；具体依赖以根 pom.xml 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)；本机已用 Nacos 3.1.1 做服务发现联调，证据和边界见 [交接记录](docs/agent-handoff.md)。
+Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2；本机 Redis 3.2.100 仅用于已保存报表缓存。Maven 版本由项目包装器确定；具体依赖以根 pom.xml 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)；本机已用 Nacos 3.1.1 做服务发现联调，证据和边界见 [交接记录](docs/agent-handoff.md)。
 
 ## 本地 MySQL 启动
 
@@ -44,13 +44,19 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 在项目根目录运行 `./scripts/verify-nacos-pricing-refresh.ps1` 可复核费率热更新；脚本要求 Nacos 中已经发布 v1 演示基线，测试结束会恢复原配置。它只创建新的模拟账单，不修改旧账单。
 
+## Redis 报表缓存（UC-10）
+
+`analytics-service` 对 `GET /api/v1/analytics/traffic-reports/{id}` 使用 Redis 读穿缓存，默认地址 `127.0.0.1:6379`，键前缀 `parking:analytics:report:v1:`，默认 TTL 为 1 小时。首次查看从 `parking_analytics` 读取并写入缓存；后续命中返回同一份不可变报表。实时 `traffic-preview` 不缓存。Redis 不可用时会回源 MySQL；若两者均不可用，仍按既有契约返回 `503 DEPENDENCY_UNAVAILABLE`。Redis 不参与车位、账单、支付或出场状态判断。
+
+启动 analytics 前在本机环境变量中设置 `REDIS_PASSWORD`，不要将真实密码写入仓库。可按需设置 `REDIS_HOST`、`REDIS_PORT`、`REDIS_CONNECT_TIMEOUT`、`REDIS_TIMEOUT` 和 `ANALYTICS_REDIS_TTL`；默认值见 [analytics 配置](analytics-service/src/main/resources/application.yml)。Redis 是可选缓存，其健康项不决定服务整体健康状态，故障会在日志记录。`analytics-service` 新增 BOM 管理的 Redis starter 与 Jackson Java Time 模块：前者提供连接与模板，后者保持报表 `OffsetDateTime` 的时区语义。
+
 本机没有 Docker/WSL，未验证 Compose 部署；Sentinel 曾在真实 MySQL 并发预约回归中引发 Feign 解码错误，已回退，当前不宣称启用熔断。
 
 ## 验证与演示
 
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
-- 16 条现有后端测试均通过；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
+- 18 条后端测试均通过（原有 16 条 + Redis 缓存 2 条）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
 - [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，22 张渲染图位于 `models/rendered/`；新增 17 号服务级出场进程顺序图，15 号源文件分别渲染五个服务的类图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。

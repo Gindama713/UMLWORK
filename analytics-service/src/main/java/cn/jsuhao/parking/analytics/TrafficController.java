@@ -69,10 +69,12 @@ class TrafficService {
     private static final ZoneId SHANGHAI = ZoneId.of("Asia/Shanghai");
     private final AccessTrafficClient access;
     private final JdbcTemplate jdbc;
+    private final SavedReportCache cache;
 
-    TrafficService(AccessTrafficClient access, JdbcTemplate jdbc) {
+    TrafficService(AccessTrafficClient access, JdbcTemplate jdbc, SavedReportCache cache) {
         this.access = access;
         this.jdbc = jdbc;
+        this.cache = cache;
     }
 
     @Transactional
@@ -133,6 +135,8 @@ class TrafficService {
     }
 
     TrafficReport saved(String id) {
+        TrafficReport cached = cache.find(id);
+        if (cached != null) return cached;
         List<TrafficReport> reports = jdbc.query("SELECT * FROM traffic_report WHERE id=?",
                 (rs, row) -> {
                     OffsetDateTime from = rs.getObject("range_start", LocalDateTime.class)
@@ -153,7 +157,9 @@ class TrafficService {
                 }, id);
         if (reports.isEmpty())
             throw new TrafficFailure("NOT_FOUND", HttpStatus.NOT_FOUND, "报表不存在");
-        return reports.getFirst();
+        TrafficReport report = reports.getFirst();
+        cache.put(report);
+        return report;
     }
 
     private static LocalDateTime utc(OffsetDateTime value) {

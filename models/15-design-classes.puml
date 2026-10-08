@@ -200,9 +200,17 @@ package "analytics-service" {
   class TrafficService {
     -access: AccessTrafficClient
     -jdbc: JdbcTemplate
+    -cache: SavedReportCache
     ~generate(from: OffsetDateTime, to: OffsetDateTime, granularity: String): TrafficReport
     ~preview(from: OffsetDateTime, to: OffsetDateTime, granularity: String): TrafficReport
     ~saved(id: String): TrafficReport
+  }
+  class SavedReportCache {
+    -redis: StringRedisTemplate
+    -json: ObjectMapper
+    -ttl: Duration
+    ~find(id: String): TrafficReport
+    ~put(report: TrafficReport): void
   }
   interface AccessTrafficClient {
     +sessions(from: String, to: String): Envelope<List<TrafficSession>>
@@ -245,11 +253,14 @@ package "analytics-service" {
   }
   TrafficController "1" --> "1" TrafficService : service
   TrafficService "1" --> "1" AccessTrafficClient : Feign, read only
+  TrafficService "1" --> "1" SavedReportCache : saved reports only
   TrafficReport "1" --> "0..*" TrafficBucket : buckets
   TrafficErrors ..> TrafficFailure : handles
   note right of TrafficService
     jdbc 仅写 analytics-service 自有报表库；
     原始车流记录仅通过 AccessTrafficClient 只读获取。
+    已保存报表读穿 Redis；故障时回源 MySQL。
+    实时预览不使用缓存。
   end note
 }
 @enduml

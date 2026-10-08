@@ -13,6 +13,7 @@ node "Windows 开发主机" {
     artifact "analytics-service :18085" as analytics
   }
   database "MySQL 8.4 :3306\n五个独立 schema" as mysql
+  database "Redis :6379\n已保存报表缓存（可选）" as redis
   artifact "Nacos 3.1.1 standalone\n:8848 注册发现与配置 / :8080 控制台" as nacos
 }
 ui --> gateway : HTTP
@@ -32,6 +33,12 @@ access --> mysql
 billing --> mysql
 pass --> mysql
 analytics --> mysql
+analytics ..> redis : 命中读取 / 未命中写入
+note right of redis
+仅缓存 analytics 的不可变报表快照；
+Redis 不可用时回源 parking_analytics。
+不参与占位、计费或支付的权威判断。
+end note
 note right of nacos
 本机联调：六实例健康注册；
 网关和跨服务调用已通过。

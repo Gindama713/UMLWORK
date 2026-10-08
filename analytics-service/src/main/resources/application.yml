@@ -10,6 +10,13 @@ spring:
     url: ${ANALYTICS_DB_URL:jdbc:mysql://localhost:3306/parking_analytics?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${ANALYTICS_DB_USER:root}
     password: ${ANALYTICS_DB_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${REDIS_TIMEOUT:500ms}
   sql:
     init:
       mode: always
@@ -31,7 +38,15 @@ clients:
   access:
     url: ${ACCESS_SERVICE_URL:http://localhost:18082}
 
+parking:
+  analytics:
+    redis:
+      ttl: ${ANALYTICS_REDIS_TTL:PT1H}
+
 management:
+  health:
+    redis:
+      enabled: false # Redis is an optional read cache; MySQL remains authoritative.
   endpoints:
     web:
       exposure:
