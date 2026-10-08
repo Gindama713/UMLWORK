@@ -2,6 +2,12 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-08：Docker Compose 文件已编写，虚拟机验收待做
+
+- **范围**：新增共享 Java 运行镜像 `Dockerfile`、`compose.yaml`、Nginx 前端镜像与反代配置、`.dockerignore` 和 `.env.example`。Compose 使用预编译六个 Spring Boot JAR 与 `frontend/dist`，不在虚拟机下载 Maven/npm 依赖；MySQL 首次初始化五库，Nacos 负责注册发现，Redis 仅供 analytics 报表缓存。与 UC-01～UC-10 的部署有关；HTTP 接口、状态、表、业务费率和服务所有权均未变化，部署视图为模型 13。
+- **本机证据**：Windows 以 Java 21 对六模块执行 `-DskipTests clean package`，六模块 Reactor 均 `SUCCESS`；`frontend` 执行 `npm ci` 和 `npm run build` 成功。六个可执行 JAR 包与 `dist` 已通过 HTTP 传到 Ubuntu 虚拟机接收目录，接收端 size/SHA-256 与本机一致；这只证明传输和构建，不证明容器能启动。
+- **待验证**：Windows 本机没有 Docker CLI/daemon；须在 Ubuntu 上执行 `docker compose config --quiet`、`docker compose up -d --build`，记录 `docker compose ps` 的健康状态，并从 Windows 对虚拟机 gateway 跑 `scripts/smoke-gateway.ps1 -GatewayUrl http://<虚拟机地址>:18080`。失败时按容器日志修 Compose，不得写成已部署成功。虚拟机上的 Compose 文件须与本仓库版本同步；不要在两端并行改同一文件。原有 `target/local-runtime/` 未清理，`.workbuddy-ai/` 未触碰。
+
 ## 2026-10-08：Redis 已保存报表缓存（最新）
 
 - **范围与边界**：UC-10 的 `analytics-service` 增加 `SavedReportCache`，仅对 `GET /api/v1/analytics/traffic-reports/{id}` 做 Redis 读穿缓存；`traffic-preview` 不缓存。`traffic_report` / `traffic_bucket` 的 MySQL 仍为权威存储，缓存写入发生在成功读库后；Redis 出错只记日志并回源，不改变 HTTP 契约、状态或表。键前缀 `parking:analytics:report:v1:`、TTL 默认 1 小时，地址/超时/密码均从环境变量配置，仓库不含真实密码。新增 `spring-boot-starter-data-redis` 提供 Lettuce 与 `StringRedisTemplate`；新增 BOM 管理的 `jackson-datatype-jsr310` 保证 `OffsetDateTime` JSON 往返保持偏移量。模型同步到图 12、13、15（analytics 那张）。

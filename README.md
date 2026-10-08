@@ -52,6 +52,35 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 本机没有 Docker/WSL，未验证 Compose 部署；Sentinel 曾在真实 MySQL 并发预约回归中引发 Feign 解码错误，已回退，当前不宣称启用熔断。
 
+## Docker Compose（Ubuntu 虚拟机，待实测）
+
+`compose.yaml` 编排 MySQL 8.4、Nacos 3.1.1、Redis、五个业务服务、gateway 与 Nginx 前端。Java 镜像直接复制六个已编译 JAR，前端镜像复制 `frontend/dist`；**容器构建不下载 Maven/npm 依赖**。因此首次运行前须先准备这七份构建产物：
+
+```powershell
+# Windows 项目根目录；只清理六个模块，不删除根目录 target/local-runtime/
+$env:JAVA_HOME = 'C:\Program Files\Amazon Corretto\jdk21.0.11_10' # 换成实际 Java 21 路径
+.\mvnw.cmd -pl gateway,space-service,access-service,billing-service,pass-service,analytics-service -DskipTests clean package
+cd frontend
+npm ci
+npm run build
+```
+
+将六个 `模块/target/模块-0.1.0-SNAPSHOT.jar` 和 `frontend/dist/` 保持相同相对目录传入虚拟机项目目录。随后在 Ubuntu 项目根目录执行：
+
+```bash
+cp .env.example .env
+# 编辑 .env：设置 MySQL、Redis 密码及 Nacos token/identity；不得提交 .env
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+curl -fsS http://127.0.0.1:18080/actuator/health
+curl -fsS http://127.0.0.1:5173/
+```
+
+Nacos token 可用 `openssl rand -base64 48` 生成，identity key/value 分别生成随机非空值。容器内部使用 `mysql:3306`、`nacos:8848`、`redis:6379`，Feign 与网关通过 Nacos 服务名发现；浏览器访问 `http://<虚拟机地址>:5173/`，Nginx 将 `/api/` 转给 gateway。数据库仅在 MySQL 数据卷**首次创建**时执行 `sql/00-create-databases.sql`，各服务随后初始化自己的表；已有旧数据卷不会重复运行该脚本。Nacos 配置中心仍可按上文发布三个示例 Data ID，本地费率默认值始终保留。
+
+从 Windows 验证虚拟机时可运行 `./scripts/smoke-gateway.ps1 -GatewayUrl http://<虚拟机地址>:18080`。目前只完成 Compose 文件和本机静态校验；尚无虚拟机 `docker compose up` 与网关烟测证据，不得把容器部署写为已验收。
+
 ## 验证与演示
 
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
