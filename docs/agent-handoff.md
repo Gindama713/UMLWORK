@@ -2,6 +2,11 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-09：GRASP 职责分配静态审计
+
+- **范围与交付**：逐类核对六模块 36 个主 Java 文件，以 7 个测试文件交叉检查；新增 `docs/grasp-audit.md`，含九项原则、六问、八个疑点和报告表 4-1 草稿。源代码、API、状态、数据库表和依赖均未更改；对照 `models/15-design-classes.puml`。重点发现 pass→space 使用公共 `/api/v1/spaces` 读接口，与服务间 `/internal/v1` 约定不一致，不能简单改用当前 `available` 接口，否则预约资源判断会改变；Jackson 2/3 混用是技术一致性风险，尚无功能故障证据。未为了凑模式重构。
+- **验证**：审计前后分别执行 `./mvnw.cmd test`（设置本机 Java 21 `JAVA_HOME`），均 `BUILD SUCCESS`，7 份 Surefire XML 各次均为 18 条、0 失败、0 错误。结束时扫描外服务 Java import 为 0。原始第二次 Maven 输出为临时文件 `UMLWORK-grasp-final-test.log`；审计文档给出源码行号与验证边界。对应报告表 4-1，涉及 UC-01～UC-10 的职责映射；模型 15 没有改动。负责人仍需决定内部车位只读接口与 Jackson 迁移的时机。
+
 ## 2026-10-09：Ubuntu VM Compose 与 Windows 网关烟测
 
 - **范围与来源**：VM agent 已在 `192.168.125.129` 部署 MySQL 8.4、Redis、五个业务服务、gateway 与 Nginx 前端；默认使用固定地址路由，Nacos 容器没有部署。其编排文件通过只读 HTTP 包取回，包的 SHA-256 独立核对为 `b1869fb596c8d15494daaaf0f296fe9edb34a0824c896a8afae06fc431ee77b6`。仓库原先未在 VM 验证的 `compose.yaml` 被 VM 当前编排的 `docker-compose.yml` 取代；前端宿主端口是 8080。新增每服务独立数据库账号的初始化脚本；同步图 13。对应 UC-01～UC-10 的容器部署；业务 HTTP 接口、状态、表、费率和服务所有权不变。

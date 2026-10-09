@@ -56,7 +56,7 @@
 | 3.2 逻辑视图：微服务划分 | ✎ | 需新建**表3-1**（服务｜职责｜独立 schema｜端口）。现成数据：`README.md` §模块与所有权、`AGENTS.md` §4 |
 | 3.3 开发视图：工程结构与接口 | ✓ | 多模块工程结构树 + **表3-2 服务间接口清单**。接口清单现成：`docs/api-contract.md`（含 DTO、调用方、同步/异步）。需补 DTO 与实体隔离原则的说明段 |
 | 3.4 进程视图：服务交互 | ✓ | **图3-2** = `models/17-process-sequence.puml`，以服务为生命线，展示出场、出账失败后复用意图、支付及释放重试。`06/08/10` 是第 4 章的设计级顺序图。正文仍需说明幂等键+本地事务+补偿/重试的一致性策略 |
-| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。图中本机六个 Java 进程、MySQL 五库、Nacos 注册发现与可选配置中心及 Redis 报表缓存均有各自实测；Compose 和 Sentinel 尚未部署。模板要求与实际启动方式一致，正文需说明固定地址模式与 Nacos 模式 |
+| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。图中是 Ubuntu VM 的 Compose 默认栈：Nginx、gateway、五个业务容器、MySQL 五库和 Redis；Windows 网关烟测通过。VM 未部署 Nacos profile，Sentinel 未接入；本机 Nacos 验证是另一种运行方式，正文应区分两者 |
 | 3.6 组件图 | ✓ | **图3-4** = `models/12-components.puml`，以提供/依赖接口表达服务组装；Redis 只连接 analytics 的已保存报表查询 |
 | 3.7 数据库设计 | ✓ | **图3-5 起** = `models/16-service-er.puml`。需补关键表结构表，以及**禁止跨库 JOIN 下的数据冗余设计说明**（如 access 冗余车牌、billing 快照权益）及其理由 |
 
@@ -65,7 +65,7 @@
 | 节 | 状态 | 要点与证据 |
 |---|---|---|
 | 4.1 核心服务设计类图 | ✓ | **图4-1～图4-5** 均来自 `models/15-design-classes.puml`，一服务一张图，含真实字段、方法签名、可见性、多重性及匿名 BenefitPolicy 实现关系。正文需说明「领域模型→设计类」的演化，例如控制器、服务类和纯虚构类 |
-| 4.2 GRASP 职责分配对照表 | ✎ **缺口** | 模板标注「**必备核心表，与评分直接挂钩**」，要求 **≥5 种模式**且**含控制器、多态、纯虚构**，并且**能定位到代码**。目前仓库中不存在此表。可定位的现成落点：多态→`billing-service/.../ParkingPricing.java`（普通/月卡/异常策略）；控制器→各服务 `*Controller.java`；纯虚构→`AccessService`、`SpaceOperations`、`IdempotencyStore`；信息专家→`BillingService`、`PassService`；低耦合→Feign 客户端 `ServiceClients.java` |
+| 4.2 GRASP 职责分配对照表 | ✎ | 模板标注「**必备核心表，与评分直接挂钩**」，要求 **≥5 种模式**且**含控制器、多态、纯虚构**，并且**能定位到代码**。草稿与逐类审计见 `docs/grasp-audit.md`，须由负责人核对后选入报告。多态的真实落点是 `ParkingPricing.BenefitPolicy` 的 NONE / RESERVATION / MONTHLY 优惠；异常附加费仍由条件分支处理，不能称为独立多态策略。纯虚构的较清楚落点是 `AccessRepository` 与幂等辅助类 |
 | 4.3 设计级顺序图 | ✓ | **图4-x** = `models/06`、`08`、`10`。模板要求**与用例规约步骤编号对应** |
 | 4.4 协作图/通信图 | ✓ | **图4-x** = `models/14-communication.puml`，需与对应顺序图互为印证 |
 | 4.5 状态图 | ✓ | **图4-x** = `models/03-parking-session-state.puml`、`04-reservation-state.puml`。模板要求**状态命名与数据库状态字段一致**——已核对一致 |
@@ -96,7 +96,7 @@
 |---|---|---|
 | 7.1 用例实现情况对照表 | ✓ | 「用例/功能｜所属服务｜状态｜说明」。现成：`docs/traceability.md` 整表可直接改造 |
 | 7.2 建模过程反思 | 🔒 **本人原创** | 须有具体事例，禁空泛议论 |
-| 7.3 不足与改进设想 | ✎ | 2～3 条可操作项。真实素材：Compose 一键部署待验证、Sentinel 兼容性问题待排查、前端包拆分（991 kB）、补跨机故障注入 |
+| 7.3 不足与改进设想 | ✎ | 2～3 条可操作项。真实素材：VM 版 Compose 已经 Windows 网关烟测，但同步后的新文件尚需 VM 重新构建；Nacos 可选 profile 未验证、Sentinel 兼容性问题待排查、前端包拆分（991 kB）、补跨机故障注入 |
 | 7.4 AI 工具使用总结与反思 | 🔒 **本人原创** | 须有具体事例，禁空泛议论 |
 
 ### 参考文献
