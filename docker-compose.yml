@@ -1,0 +1,300 @@
+# 机场智慧停车与出行服务平台 —— Docker 编排
+#
+# 使用步骤：
+#   1) 在 Windows 宿主机执行 .\mvnw.cmd -DskipTests clean package，上传六个 jar 与 frontend/dist
+#   2) docker compose up -d --build      # 构建运行镜像并启动整套
+#   3) docker compose ps                 # 查看各服务健康状态
+#   4) curl -s localhost:18080/actuator/health
+#
+# 设计说明：
+#   * 默认【不启动 Nacos】。项目交接记录已实测：Nacos 8848 未运行时六个服务 /actuator/health 全部 UP，
+#     因为 spring.config.import 用的是 optional:nacos:... 且 NACOS_ENABLED 默认 false。
+#     Nacos profile 尚未联调；单独启动它不会自动切换固定地址路由和 Feign 地址。
+#   * 容器内数据库地址是 mysql:3306，绝不能沿用配置默认的 localhost/127.0.0.1。
+#   * 密码只来自未提交的 .env（.gitignore 已忽略）。
+#   * MySQL 初始化：sql/00-create-databases.sql 建五个库；docker/mysql-init/10-create-users.sh
+#     为每个服务建"只能访问自有 schema"的账号。两者只在数据卷为空时执行一次。
+
+name: umlwork
+
+x-java-common: &java-common
+  restart: unless-stopped
+  mem_limit: 512m
+  networks: [backend]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  environment: &java-env
+    TZ: Asia/Shanghai
+    # 本编排有意不部署 Nacos（见 docker/README.md），而各服务的
+    # spring.config.import: optional:nacos:... 会持续重试并打出 ERROR 级噪音。
+    # 这里把 nacos 客户端日志压掉，避免掩盖真正的故障。
+    # ⚠️ 一旦启用 --profile nacos 做服务发现，请改为 WARN。
+    LOGGING_LEVEL_COM_ALIBABA_NACOS: "OFF"
+    # 单容器内存受限，显式压制 JVM 占用；SerialGC + TieredStopAtLevel=1 降低 JIT 内存与启动开销
+    JAVA_TOOL_OPTIONS: >-
+      -XX:MaxRAMPercentage=55 -XX:+UseSerialGC -XX:TieredStopAtLevel=1
+      -XX:MaxMetaspaceSize=128m -Xss512k -Duser.timezone=Asia/Shanghai
+
+services:
+
+  # ---------------- 基础设施 ----------------
+  mysql:
+    image: mysql:8.4
+    container_name: umlwork-mysql
+    restart: unless-stopped
+    mem_limit: 768m
+    networks: [backend]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请先创建 .env（参考 .env.example）}
+      SPACE_DB_USER: ${SPACE_DB_USER:?}
+      SPACE_DB_PASSWORD: ${SPACE_DB_PASSWORD:?}
+      ACCESS_DB_USER: ${ACCESS_DB_USER:?}
+      ACCESS_DB_PASSWORD: ${ACCESS_DB_PASSWORD:?}
+      BILLING_DB_USER: ${BILLING_DB_USER:?}
+      BILLING_DB_PASSWORD: ${BILLING_DB_PASSWORD:?}
+      PASS_DB_USER: ${PASS_DB_USER:?}
+      PASS_DB_PASSWORD: ${PASS_DB_PASSWORD:?}
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER:?}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --innodb-buffer-pool-size=128M
+      - --performance-schema=OFF
+      - --max-connections=200
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 只在数据卷为空时执行：先建库，再建各服务的专用账号
+      - ./sql/00-create-databases.sql:/docker-entrypoint-initdb.d/00-create-databases.sql:ro
+      - ./docker/mysql-init/10-create-users.sh:/docker-entrypoint-initdb.d/10-create-users.sh:ro
+    ports:
+      - "3306:3306"   # 便于宿主机侧脚本核对；不需要可整行删除
+    healthcheck:
+      # 初始化期间官方镜像用的是 skip-networking 的临时实例，因此这里只有在"真正可连"后才通过
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: umlwork-redis
+    restart: unless-stopped
+    mem_limit: 192m
+    networks: [backend]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      TZ: Asia/Shanghai
+    # 密码由未提交的 .env 注入，不写死在仓库；VM 的 Docker 管理员仍可从容器环境读取
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly no --save '' --maxmemory 128mb --maxmemory-policy allkeys-lru"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  # ---------------- 业务服务（端口 18081-18085） ----------------
+  space-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: space-service
+    container_name: umlwork-space
+    environment:
+      <<: *java-env
+      SPACE_DB_URL: "jdbc:mysql://mysql:3306/parking_space?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+      SPACE_DB_USER: ${SPACE_DB_USER:?}
+      SPACE_DB_PASSWORD: ${SPACE_DB_PASSWORD:?}
+    depends_on:
+      mysql: {condition: service_healthy}
+    healthcheck: &java-health
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18081/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  access-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: access-service
+    container_name: umlwork-access
+    environment:
+      <<: *java-env
+      ACCESS_DB_URL: "jdbc:mysql://mysql:3306/parking_access?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+      ACCESS_DB_USER: ${ACCESS_DB_USER:?}
+      ACCESS_DB_PASSWORD: ${ACCESS_DB_PASSWORD:?}
+      SPACE_SERVICE_URL: "http://space-service:18081"
+      BILLING_SERVICE_URL: "http://billing-service:18083"
+      PASS_SERVICE_URL: "http://pass-service:18084"
+    depends_on:
+      mysql: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18082/actuator/health | grep -q UP"]
+
+  billing-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: billing-service
+    container_name: umlwork-billing
+    environment:
+      <<: *java-env
+      BILLING_DB_URL: "jdbc:mysql://mysql:3306/parking_billing?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+      BILLING_DB_USER: ${BILLING_DB_USER:?}
+      BILLING_DB_PASSWORD: ${BILLING_DB_PASSWORD:?}
+    depends_on:
+      mysql: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18083/actuator/health | grep -q UP"]
+
+  pass-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: pass-service
+    container_name: umlwork-pass
+    environment:
+      <<: *java-env
+      PASS_DB_URL: "jdbc:mysql://mysql:3306/parking_pass?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+      PASS_DB_USER: ${PASS_DB_USER:?}
+      PASS_DB_PASSWORD: ${PASS_DB_PASSWORD:?}
+      SPACE_SERVICE_URL: "http://space-service:18081"
+    depends_on:
+      mysql: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18084/actuator/health | grep -q UP"]
+
+  analytics-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: analytics-service
+    container_name: umlwork-analytics
+    environment:
+      <<: *java-env
+      ANALYTICS_DB_URL: "jdbc:mysql://mysql:3306/parking_analytics?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER:?}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?}
+      ACCESS_SERVICE_URL: "http://access-service:18082"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      REDIS_CONNECT_TIMEOUT: 500ms
+      REDIS_TIMEOUT: 500ms
+      ANALYTICS_REDIS_TTL: PT1H
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      <<: *java-health
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18085/actuator/health | grep -q UP"]
+
+  # ---------------- 网关（对外 18080） ----------------
+  gateway:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        SERVICE: gateway
+    container_name: umlwork-gateway
+    environment:
+      <<: *java-env
+      GATEWAY_PORT: "18080"
+      # 固定地址模式（默认 profile，不依赖 Nacos）
+      SPACE_SERVICE_URI: "http://space-service:18081"
+      ACCESS_SERVICE_URI: "http://access-service:18082"
+      BILLING_SERVICE_URI: "http://billing-service:18083"
+      PASS_SERVICE_URI: "http://pass-service:18084"
+      ANALYTICS_SERVICE_URI: "http://analytics-service:18085"
+    ports:
+      - "18080:18080"   # 宿主机侧做网关烟测的入口
+    depends_on:
+      space-service: {condition: service_healthy}
+      access-service: {condition: service_healthy}
+      billing-service: {condition: service_healthy}
+      pass-service: {condition: service_healthy}
+      analytics-service: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:18080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  # ---------------- 前端（nginx + /api 反代） ----------------
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: umlwork-frontend
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [backend]
+    ports:
+      - "8080:80"   # 浏览器访问 http://<VM_IP>:8080
+    depends_on:
+      gateway: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------- 可选：Nacos 服务发现（默认不启动，未验证） ----------------
+  # 项目交接记录里的 Nacos 是宿主机上的 3.1.1；此容器化定义未经实测，
+  # 镜像 tag 与 3.x 控制台鉴权初始化流程都可能需要调整。
+  # 仅供后续独立联调：docker compose --profile nacos up -d
+  nacos:
+    image: nacos/nacos-server:v3.1.1
+    container_name: umlwork-nacos
+    profiles: ["nacos"]
+    restart: unless-stopped
+    mem_limit: 640m
+    networks: [backend]
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "8081:8080"   # 控制台（避开前端已占的 8080）
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8848/nacos/v1/console/health/readiness || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql-data:

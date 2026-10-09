@@ -1,0 +1,15 @@
+# 前端运行镜像：直接使用预构建的 frontend/dist
+#
+# 与 jar 同一策略：容器只负责跑产物，不在容器里编译。
+# 理由（实测数据）：本 VM 访问通用 HTTPS 的上限约 190KB/s，
+# 容器内跑 npm ci 要下约 200MB，属于纯浪费；而宿主机→VM 本地链路可达 98MB/s。
+#
+# 重新生成 dist：
+#   cd frontend && npm ci && npm run build
+FROM nginx:1.27-alpine
+
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/dist /usr/share/nginx/html
+
+EXPOSE 80

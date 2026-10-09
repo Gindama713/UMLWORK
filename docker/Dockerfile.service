@@ -1,0 +1,24 @@
+# 运行镜像：只承载已构建好的 Spring Boot 可执行 jar
+#
+# 前置：先在宿主机编译整个多模块工程，让各模块 target/ 下生成
+#       <module>-0.1.0-SNAPSHOT.jar。
+# 本镜像不做编译，避免每次 compose build 都重跑 Maven。
+FROM eclipse-temurin:21-jre
+
+ARG SERVICE
+ENV DEBIAN_FRONTEND=noninteractive
+
+# curl 用于 compose healthcheck 与容器内排查；tzdata 保证 Asia/Shanghai 可用
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl tzdata \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 显式断言 jar 存在，缺失时构建期就失败，而不是运行期才发现
+COPY ${SERVICE}/target/${SERVICE}-0.1.0-SNAPSHOT.jar /app/app.jar
+
+ENV TZ=Asia/Shanghai \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=55 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=128m -Xss512k -Duser.timezone=Asia/Shanghai"
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

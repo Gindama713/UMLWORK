@@ -1,10 +1,16 @@
-# Agent 交接记录（2026-10-08，当前可接手）
+# Agent 交接记录（2026-10-09，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
-## 2026-10-08：Docker Compose 文件已编写，虚拟机验收待做
+## 2026-10-09：Ubuntu VM Compose 与 Windows 网关烟测
 
-- **范围**：新增共享 Java 运行镜像 `Dockerfile`、`compose.yaml`、Nginx 前端镜像与反代配置、`.dockerignore` 和 `.env.example`。Compose 使用预编译六个 Spring Boot JAR 与 `frontend/dist`，不在虚拟机下载 Maven/npm 依赖；MySQL 首次初始化五库，Nacos 负责注册发现，Redis 仅供 analytics 报表缓存。与 UC-01～UC-10 的部署有关；HTTP 接口、状态、表、业务费率和服务所有权均未变化，部署视图为模型 13。
+- **范围与来源**：VM agent 已在 `192.168.125.129` 部署 MySQL 8.4、Redis、五个业务服务、gateway 与 Nginx 前端；默认使用固定地址路由，Nacos 容器没有部署。其编排文件通过只读 HTTP 包取回，包的 SHA-256 独立核对为 `b1869fb596c8d15494daaaf0f296fe9edb34a0824c896a8afae06fc431ee77b6`。仓库原先未在 VM 验证的 `compose.yaml` 被 VM 当前编排的 `docker-compose.yml` 取代；前端宿主端口是 8080。新增每服务独立数据库账号的初始化脚本；同步图 13。对应 UC-01～UC-10 的容器部署；业务 HTTP 接口、状态、表、费率和服务所有权不变。
+- **Windows 独立实测**：`pwsh -NoProfile -File .\scripts\smoke-gateway.ps1 -GatewayUrl http://192.168.125.129:18080` 退出码 0，11 个断言均 PASS，包括活动充电阻止出场、冻结费用出账、失败支付保持在场、同键重试、支付后释放、重复完成不再扣费、发票与流量预览。会话 `78ca40cc-f354-4067-b4b5-da63c5cb836e`，账单 `d7b6945e-ff72-4445-ac8d-b7fa4f7199a2`，停车 1000 分、充电 300 分、应付 1300 分。原始输出保存在本机临时文件 `UMLWORK-vm-smoke-20261009.log`。另查网关 `/actuator/health` 为 `UP`、前端首页 HTTP 200、前端 `/api/v1/spaces/status` 为 `code=OK`。
+- **边界与后续**：VM agent 报告六个 Java 服务健康、MySQL 初始化成功；Windows 本机没有 Docker CLI，未独立获取 `docker compose ps` 或容器日志。取回的编排文件与 VM 运行版本对齐后，本仓库又做了文档、构建上下文白名单及初始化脚本输入校验，**这些新编辑尚未在 VM 重建测试**。需在 VM 同步仓库后执行 `docker compose config --quiet && docker compose up -d --build && docker compose ps`，再跑同一烟测。Nacos profile 与 Sentinel 仍未在 VM 验证；课程截图必须由负责人本人采集。不要删除 `target/local-runtime/` 或 `.workbuddy-ai/`。
+
+## 2026-10-08：Docker Compose 初稿（已被 2026-10-09 的 VM 版本取代）
+
+- **当时的初稿范围**：共享 Java 运行镜像 `Dockerfile`、`compose.yaml`、Nginx 前端镜像与反代配置、`.dockerignore` 和 `.env.example`。初稿计划预编译六个 Spring Boot JAR 与 `frontend/dist`，并默认用 Nacos 注册发现；该版本从未在 VM 验证，且已被上方 2026-10-09 的固定地址编排取代。Redis 仅供 analytics 报表缓存；HTTP 接口、状态、表、业务费率和服务所有权未变化。
 - **本机证据**：Windows 以 Java 21 对六模块执行 `-DskipTests clean package`，六模块 Reactor 均 `SUCCESS`；`frontend` 执行 `npm ci` 和 `npm run build` 成功。六个可执行 JAR 包与 `dist` 已通过 HTTP 传到 Ubuntu 虚拟机接收目录，接收端 size/SHA-256 与本机一致；这只证明传输和构建，不证明容器能启动。
 - **待验证**：Windows 本机没有 Docker CLI/daemon；须在 Ubuntu 上执行 `docker compose config --quiet`、`docker compose up -d --build`，记录 `docker compose ps` 的健康状态，并从 Windows 对虚拟机 gateway 跑 `scripts/smoke-gateway.ps1 -GatewayUrl http://<虚拟机地址>:18080`。失败时按容器日志修 Compose，不得写成已部署成功。虚拟机上的 Compose 文件须与本仓库版本同步；不要在两端并行改同一文件。原有 `target/local-runtime/` 未清理，`.workbuddy-ai/` 未触碰。
 

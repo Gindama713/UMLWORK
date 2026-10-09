@@ -1,48 +1,30 @@
 @startuml
-title 本机演示部署图（AI-辅助）
-node "浏览器" {
-  artifact "Vue/Vite 开发页" as ui
-}
-node "Windows 开发主机" {
-  node "Java 21 进程" {
-    artifact "gateway :18080" as gateway
-    artifact "space-service :18081" as space
-    artifact "access-service :18082" as access
-    artifact "billing-service :18083" as billing
-    artifact "pass-service :18084" as pass
-    artifact "analytics-service :18085" as analytics
+title Ubuntu 虚拟机容器部署图（AI-辅助）
+top to bottom direction
+node "Windows\n浏览器 / 烟测客户端" as client
+node "Ubuntu VM 192.168.125.129\nDocker Compose 默认栈" {
+  node "frontend\nNginx :8080" as frontend
+  node "gateway\nJava 21 :18080" as gateway
+  node "业务容器 / Java 21" as services {
+    artifact "space-service :18081\naccess-service :18082\nbilling-service :18083\npass-service :18084\nanalytics-service :18085" as business
   }
-  database "MySQL 8.4 :3306\n五个独立 schema" as mysql
-  database "Redis :6379\n已保存报表缓存（可选）" as redis
-  artifact "Nacos 3.1.1 standalone\n:8848 注册发现与配置 / :8080 控制台" as nacos
+  database "MySQL 8.4 :3306\nparking_space / parking_access\nparking_billing / parking_pass\nparking_analytics\n各服务仅访问自有 schema" as mysql
+  database "Redis :6379\n已保存报表缓存" as redis
 }
-ui --> gateway : HTTP
-gateway --> space
-gateway --> access
-gateway --> billing
-gateway --> pass
-gateway --> analytics
-gateway ..> nacos : 注册 / lb:// 发现 / 可选配置
-space ..> nacos : 注册 / 充电参数刷新
-access ..> nacos : 注册 / Feign 发现 / 可选配置
-billing ..> nacos : 注册 / 费率参数刷新
-pass ..> nacos : 注册 / Feign 发现 / 预约月卡参数刷新
-analytics ..> nacos : 注册 / Feign 发现 / 可选配置
-space --> mysql
-access --> mysql
-billing --> mysql
-pass --> mysql
-analytics --> mysql
-analytics ..> redis : 命中读取 / 未命中写入
-note right of redis
-仅缓存 analytics 的不可变报表快照；
-Redis 不可用时回源 parking_analytics。
-不参与占位、计费或支付的权威判断。
+node "Nacos profile\nVM 未部署 / 未验证" as nacos
+client --> frontend : HTTP :8080
+client --> gateway : 烟测 :18080
+frontend --> gateway : /api/ 反向代理
+gateway --> services : 固定服务地址
+services --> mysql : 独立账号
+services ..> redis : analytics 读穿缓存
+note bottom of services
+跨服务调用：access → pass / space / billing，
+pass → space（只读），analytics → access（只读）。
+MySQL 保存所有权威状态；Redis 不可用时回源。
 end note
-note right of nacos
-本机联调：六实例健康注册；
-网关和跨服务调用已通过。
-配置中心可选；离线使用本地兜底值。
-Docker Compose 与 Sentinel 未启用。
+note bottom of nacos
+Windows 本机曾独立验证 Nacos 注册发现与配置热更新；
+VM 默认栈未启用 Nacos，Sentinel 未接入。
 end note
 @enduml
