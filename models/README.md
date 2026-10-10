@@ -6,6 +6,8 @@
 
 2026-10-09 图 13 已改为 Ubuntu VM Compose 默认栈：Nginx、gateway、五个业务容器、MySQL 五库和 Redis；默认固定地址路由。VM 未部署 Nacos profile，Sentinel 未接入。用同一 PlantUML 1.2024.3 执行 `-checkonly` 和重新渲染 `13-deployment.png`，并打开 PNG 检查布局。Windows 经该 VM 网关完成烟测，容器内部状态以 VM 侧验收记录为准。
 
+2026-10-10 图 13 同步 Windows Docker Desktop 默认栈与新增的 gateway→frontend 页面静态路由。PlantUML 1.2024.3 对本图 `-checkonly`、渲染退出码 0，已打开 PNG 检查；五个业务服务依赖和数据库所有权没有改变。
+
 2026-10-08 已将 analytics 的可选 Redis 报表缓存同步到组件图 12、部署图 13 和设计类图 15，并重新检查语法、渲染及打开对应 PNG；MySQL 仍是报表权威存储。
 
 在项目根目录可用 `java -jar plantuml.jar -checkonly "models/*.puml"` 检查语法，再用 `java -jar plantuml.jar -charset UTF-8 -tpng -o rendered "models/*.puml"` 重建图片。`plantuml.jar` 可使用本机 VS Code PlantUML 扩展附带的版本；图片是源文件的派生产物。

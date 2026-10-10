@@ -5,6 +5,7 @@
 ## 通用格式
 
 - UTF-8 JSON。外部路径以 /api/v1 开头，服务间路径以 /internal/v1 开头。状态接口仍保留。
+- 网关的 `/`、`/assets/**` 等为前端页面/静态资源路由，不是业务 REST 接口；地址由 `FRONTEND_SERVICE_URI` 配置。业务响应格式只约束 `/api/v1` 和 `/internal/v1`。
 - 所有响应为 {code:string,message:string,data:object|array|null,requestId:string}；成功 code=OK。非 2xx 也遵守此格式。
 - ID 为 UUID 字符串；车牌去除两端空白、规范化大写，统一接受 5～12 位汉字/字母/数字；金额用 long 整数分；电量用十进制数 kWh；时间为 ISO 8601 带偏移量字符串，数据库时刻精度为微秒，计费自然日按 Asia/Shanghai。
 - 创建、支付、占用、释放均携带 Idempotency-Key。相同键和请求重试返回原业务结果；同键不同请求返回 IDEMPOTENCY_CONFLICT。access 的出场重试返回当前恢复状态（例如已付待释放恢复为 CLOSED），不会再次扣费。停车记录 ID 和账单的 parkingSessionId 唯一约束作为第二道防线。

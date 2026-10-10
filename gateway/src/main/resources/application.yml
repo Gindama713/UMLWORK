@@ -17,6 +17,10 @@ spring:
       server:
         webflux:
           routes:
+            - id: frontend
+              uri: ${FRONTEND_SERVICE_URI:http://localhost:5173}
+              predicates:
+                - Path=/,/assets/**,/favicon.ico,/@vite/**,/@id/**,/@fs/**,/src/**,/node_modules/**
             - id: spaces
               uri: ${SPACE_SERVICE_URI:http://localhost:18081}
               predicates:

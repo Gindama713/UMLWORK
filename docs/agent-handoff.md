@@ -1,6 +1,13 @@
-# Agent 交接记录（2026-10-09，当前可接手）
+# Agent 交接记录（2026-10-10，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-10：Windows Docker、网关首页与可读性整理
+
+- **范围**：保持 UC-01～UC-10 的业务语义、HTTP 业务接口、状态、表和金额单位不变。网关默认/Nacos 两份路由配置增加可配置的 `FRONTEND_SERVICE_URI` 页面资源路由，Docker 中指向 Nginx；浏览器访问 `:18080/` 不再进入 Whitelabel 404。`analytics-service` 将 `TrafficController.java` 中原有控制器、Feign 客户端、统计服务、DTO/异常和异常处理拆为五个同包文件；类名、方法和调用顺序未变。前端由单个 App 大文件拆成应用外壳、七个页面、工作台状态和 API 客户端；样式按四份职责文件整理，增加短暂入场/悬停动效并尊重 `prefers-reduced-motion`。文件边界见 `frontend/README.md`；部署图 13 已同步网关至前端的静态路由并重渲染。
+- **本机验证**：Windows Docker Desktop 29.8.2 / Compose 5.5.1 的 `docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build` 成功。`docker compose ps` 中 MySQL、Redis、五个业务服务、gateway 均 healthy；Nginx 前端 running。宿主 MySQL 占用 3306，忽略的本地 override 只把 Docker MySQL 宿主端口改为 13306，容器内仍用 3306。网关 `/` 和 JS 静态资源均 HTTP 200，`/api/v1/spaces/status` 为 `OK`。最终容器上的 `pwsh -NoProfile -File scripts/smoke-gateway.ps1 -GatewayUrl http://127.0.0.1:18080` 退出码 0、12 项 PASS，账单 `a82b11ae-3de7-43a5-b616-58d028230d29` 为停车 1000 分 + 充电 300 分 = 1300 分。
+- **测试和浏览器**：`./mvnw.cmd test` 退出码 0，七份 Surefire XML 合计 18 条、0 失败、0 错误；拆分后 `analytics-service` 单模块测试及 gateway/analytics 打包通过。`frontend` 的 `npm test` 为 3 条、0 失败，验证 503 和非法成功包重试沿用幂等键、非 JSON 404 返回可理解错误。页面按需注册实际使用的十个 Element Plus 组件后 `npm run build` 通过，主 JS 从约 995 kB 降至 390.53 kB（gzip 135.10 kB），不再有 Vite 大包警告。真实浏览器从 `:18080/` 打开七个页面，均显示对应标题、当前页表单控件可见且控制台 error/warn 为 0；390px 视口 `scrollWidth=375 <= innerWidth=390`。PlantUML 1.2024.3 对图 13 `-checkonly` 与 PNG 渲染退出码均为 0，已打开 PNG 检查。未测量动画 FPS，不声称达到固定帧率。
+- **边界**：本轮网关烟测覆盖入场/充电/计费/支付失败恢复/释放/发票/报表；预约、月卡和异常出场的先前 MySQL 联调证据仍见 `docs/code-audit.md`、`docs/mysql-fault-tests.md`，本轮没有重新逐按钮做这三条浏览器流程。Nacos profile 的新增页面路由已编译，未在真实 Nacos 模式复测。课程要求的本人截图、录屏、原创报告章节仍由负责人完成。未推送远端；原有三个未跟踪的 agent prompt 文档没有修改。
 
 ## 2026-10-09：GRASP 职责分配静态审计
 

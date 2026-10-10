@@ -18,7 +18,7 @@
 | redis | umlwork-redis | 内部 6379 | redis:7-alpine |
 | nacos（可选 profile） | umlwork-nacos | 8848 / 8081 | nacos/nacos-server:v3.1.1 |
 
-对外访问：网关 `http://<VM_IP>:18080`，前端 `http://<VM_IP>:8080`。
+对外访问：网关及页面 `http://<宿主机地址>:18080/`，Nginx 前端 `http://<宿主机地址>:8080/`。
 
 ## 使用步骤
 
@@ -61,8 +61,8 @@ curl -s localhost:18080/actuator/health
    网关默认 profile 也用固定地址路由（`*_SERVICE_URI`）。
    可选 Nacos 容器尚未联调；单独启动该 profile 也不会自动切换网关和 Feign 的固定地址配置，不能据此声称服务发现已启用。
 
-4. **前端必须靠 nginx 反代**：`App.vue` 全部请求相对路径 `/api/v1/...`，生产构建不含代理，
-   所以 `docker/nginx.conf` 把 `/api/` 反代到 `gateway:18080`；没有这一段前端只会 404。
+4. **两种页面入口**：前端 API 客户端全部请求相对路径 `/api/v1/...`，生产构建不含代理。
+   `:8080` 由 Nginx 托管页面并把 `/api/` 反代到 gateway；`:18080/` 由 gateway 将页面和静态资源路由到 `FRONTEND_SERVICE_URI`（Compose 中为 `http://frontend:80`）。业务 API 路由仍指向五个服务。
 
 5. **内存敏感**：每个 Java 服务 `mem_limit: 512m` + `MaxRAMPercentage=55` + `SerialGC` +
    `TieredStopAtLevel=1`；MySQL 关 `performance_schema`、buffer pool 限 128M。
@@ -71,7 +71,8 @@ curl -s localhost:18080/actuator/health
 ## 已知未验证 / 注意事项
 
 - **Nacos profile 未实测**：镜像 tag 与 3.x 控制台鉴权初始化流程都可能需要调整，默认不启用。
-- **证据边界**：VM agent 报告 `docker compose up -d` 后六个 Java 服务健康；Windows 经 `scripts/smoke-gateway.ps1 -GatewayUrl http://192.168.125.129:18080` 实测退出码 0，11 项 PASS。Windows 没有 Docker CLI，未独立检查容器列表；新仓库文件与 VM 当前运行文件同步后还需重新构建复核。
+- **证据边界**：VM agent 报告 `docker compose up -d` 后六个 Java 服务健康；Windows 对 VM 网关的烟测通过。2026-10-10 Windows Docker Desktop 也独立构建并启动本仓库，`docker compose ps` 中 MySQL、Redis、五个业务服务和 gateway 均 healthy；网关烟测 12 项 PASS。VM 仍需在同步最新源码/构建产物后重新验证本次改动。
+- **Windows 3306 冲突**：若宿主机已有 MySQL，不需停止它。创建忽略的本地覆盖文件 `target/local-runtime/docker-windows.override.yml`，内容为 `services: { mysql: { ports: !override ["13306:3306"] } }`，然后使用 `docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build`；这只改变宿主端口，服务内部仍连接 `mysql:3306`。
 - **MySQL 3306 对宿主暴露**：便于宿主机侧脚本核对；不需要可删掉 `ports` 那一行。
 - 所有服务日志已限 `10m × 3`，避免长期运行撑爆磁盘。
 - `.env` 含真实密码，**不要提交**；`.dockerignore` 已排除，避免被烤进镜像层。

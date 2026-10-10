@@ -1,8 +1,8 @@
 @startuml
-title Ubuntu 虚拟机容器部署图（AI-辅助）
+title Docker Compose 默认栈部署图（AI-辅助）
 top to bottom direction
-node "Windows\n浏览器 / 烟测客户端" as client
-node "Ubuntu VM 192.168.125.129\nDocker Compose 默认栈" {
+node "浏览器 / 烟测客户端" as client
+node "Windows Docker Desktop / Ubuntu VM\nDocker Compose 默认栈" {
   node "frontend\nNginx :8080" as frontend
   node "gateway\nJava 21 :18080" as gateway
   node "业务容器 / Java 21" as services {
@@ -11,10 +11,11 @@ node "Ubuntu VM 192.168.125.129\nDocker Compose 默认栈" {
   database "MySQL 8.4 :3306\nparking_space / parking_access\nparking_billing / parking_pass\nparking_analytics\n各服务仅访问自有 schema" as mysql
   database "Redis :6379\n已保存报表缓存" as redis
 }
-node "Nacos profile\nVM 未部署 / 未验证" as nacos
+node "Nacos profile\n默认栈未启用 / profile 未验证" as nacos
 client --> frontend : HTTP :8080
-client --> gateway : 烟测 :18080
+client --> gateway : 页面与 API :18080
 frontend --> gateway : /api/ 反向代理
+gateway --> frontend : / 与 /assets/ 静态路由
 gateway --> services : 固定服务地址
 services --> mysql : 独立账号
 services ..> redis : analytics 读穿缓存
@@ -25,6 +26,6 @@ MySQL 保存所有权威状态；Redis 不可用时回源。
 end note
 note bottom of nacos
 Windows 本机曾独立验证 Nacos 注册发现与配置热更新；
-VM 默认栈未启用 Nacos，Sentinel 未接入。
+此 Compose 默认栈未启用 Nacos，Sentinel 未接入。
 end note
 @enduml

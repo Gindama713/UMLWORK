@@ -1,0 +1,607 @@
+/* Calm airport wayfinding: readable type, clear surfaces, restrained motion. */
+:root {
+  color: #18283e;
+  background: #f4f6f8;
+  --lime: #d9ef8d;
+}
+
+body {
+  background: radial-gradient(circle at 95% 0, #e9f0f7 0, transparent 34%), #f4f6f8;
+}
+
+.sidebar {
+  width: 224px;
+  background: linear-gradient(165deg, #122238 0%, #1c304a 72%, #203c55 100%);
+}
+
+.workspace {
+  margin-left: 224px;
+}
+
+.sidebar nav button {
+  font-size: 14px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.sidebar nav button:hover {
+  transform: translateX(3px);
+}
+
+.sidebar nav button.active:hover {
+  transform: none;
+}
+
+.topbar {
+  height: 68px;
+}
+
+.page {
+  max-width: 1560px;
+}
+
+.page-header h1 {
+  font-size: clamp(30px, 2.6vw, 40px);
+  letter-spacing: -1px;
+}
+
+.subtitle,
+.muted {
+  font-size: 13px;
+}
+
+.metric-grid {
+  gap: 18px;
+}
+
+.metric-card,
+.panel,
+.receipt,
+.checkout-steps {
+  border-radius: 15px;
+  box-shadow: 0 10px 36px #273d5710;
+}
+
+.metric-card {
+  min-height: 156px;
+  padding: 23px 24px;
+  border-top: 3px solid #dce6f1;
+}
+
+.metric-card.accent {
+  border-top-color: #a5c658;
+  background: linear-gradient(140deg, #f0f7df, #e9f2d2);
+}
+
+.metric-label,
+.resource-lines > div {
+  font-size: 12px;
+}
+
+.metric-card > strong {
+  font-size: clamp(38px, 3vw, 48px);
+}
+
+.metric-card p,
+.section-kicker,
+.map-caption {
+  font-size: 11px;
+}
+
+.panel-heading h2 {
+  font-size: 18px;
+}
+
+.arrival-card {
+  position: relative;
+  min-height: 247px;
+  padding: 27px;
+  background: linear-gradient(135deg, #e2f29f, #c9e67d);
+}
+
+.arrival-card::after {
+  content: '';
+  position: absolute;
+  right: -15px;
+  top: 70px;
+  width: 110px;
+  height: 110px;
+  border: 1px dashed #74964b66;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.arrival-card h2 {
+  position: relative;
+  z-index: 1;
+  font-size: 29px;
+}
+
+.arrival-card p {
+  font-size: 12px;
+}
+
+.primary-link,
+.el-button,
+.owner-link,
+.charger-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.primary-link:hover,
+.owner-link:hover,
+.charger-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px #263b5219;
+}
+
+.el-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.garage-canvas {
+  background-color: #eaf0f5;
+}
+
+.parking-bay {
+  transition:
+    transform 0.25s ease,
+    background-color 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+.view-3d .parking-bay {
+  transform: rotateX(16deg) translateY(-3px);
+}
+
+.view-3d .parking-bay:hover,
+.view-3d .parking-bay:focus-visible {
+  transform: rotateX(16deg) translateY(-8px);
+}
+
+.business-pages .el-tab-pane {
+  animation: page-enter 0.36s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.metric-card,
+.overview-grid > *,
+.overview-bottom > * {
+  animation: page-enter 0.48s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.metric-card:nth-child(2),
+.overview-grid > :nth-child(2) {
+  animation-delay: 55ms;
+}
+
+.metric-card:nth-child(3),
+.overview-bottom > :nth-child(2) {
+  animation-delay: 110ms;
+}
+
+.metric-card:nth-child(4) {
+  animation-delay: 165ms;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 1180px) {
+  .map-panel .garage-zones {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .garage-zones {
+    gap: 26px 38px;
+  }
+  .parking-bay {
+    height: 135px;
+  }
+  .arrival-card h2 {
+    font-size: 29px;
+  }
+}
+
+@media (max-width: 1150px) {
+  .page {
+    padding: 26px 24px;
+  }
+  .topbar {
+    padding: 0 24px;
+  }
+  .metric-card {
+    padding: 17px;
+  }
+  .updated {
+    display: none;
+  }
+  .overview-grid,
+  .overview-bottom {
+    grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr);
+    gap: 18px;
+  }
+  .panel {
+    padding: 20px;
+  }
+  .garage-zones {
+    gap: 13px;
+  }
+  .garage-canvas {
+    padding: 16px 12px 12px;
+  }
+  .entry-layout {
+    grid-template-columns: minmax(260px, 1fr) minmax(0, 1.1fr);
+  }
+  .checkout-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(270px, 1fr);
+  }
+  .checkout-steps {
+    padding: 18px;
+  }
+  .checkout-steps > div:not(:last-child)::after {
+    margin: 0 9px;
+  }
+  .location-number strong {
+    font-size: 33px;
+  }
+  .location-number > .app-icon {
+    display: none;
+  }
+}
+
+@media (max-width: 950px) {
+  .sidebar {
+    width: 180px;
+    padding: 27px 12px;
+  }
+  .workspace {
+    margin-left: 180px;
+  }
+  .brand {
+    margin-left: 4px;
+    gap: 9px;
+  }
+  .brand strong {
+    font-size: 16px;
+  }
+  .brand small {
+    font-size: 8px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 36px;
+  }
+  .nav-caption {
+    font-size: 8px;
+  }
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overview-grid,
+  .overview-bottom,
+  .entry-layout,
+  .checkout-layout {
+    grid-template-columns: 1fr;
+  }
+  .workbench-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .owner-link {
+    grid-column: 1 / -1;
+  }
+  .arrival-card h2 {
+    font-size: 24px;
+  }
+  .breadcrumb {
+    font-size: 10px;
+  }
+  .breadcrumb strong,
+  .topbar-separator {
+    display: none;
+  }
+  .garage-zones {
+    gap: 20px;
+  }
+  .entry-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  .type-picker {
+    grid-template-columns: 1fr;
+  }
+  .search-row {
+    flex-wrap: wrap;
+  }
+  .search-row .el-button {
+    flex-shrink: 0;
+  }
+  .location-panel {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    position: static;
+    width: auto;
+    padding: 16px 14px 12px;
+  }
+  .brand {
+    margin: 0 0 17px;
+  }
+  .brand strong {
+    font-size: 18px;
+  }
+  .sidebar nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+  .sidebar nav button {
+    width: auto;
+    min-height: 36px;
+    flex-shrink: 0;
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+  .sidebar nav .app-icon {
+    display: none;
+  }
+  .nav-caption,
+  .sidebar-guide,
+  .sidebar-footer {
+    display: none;
+  }
+  .workspace {
+    margin-left: 0;
+  }
+  .topbar {
+    height: 48px;
+    padding: 0 16px;
+    font-size: 9px;
+    gap: 10px;
+  }
+  .breadcrumb {
+    font-size: 8px;
+  }
+  .connection-menu summary {
+    font-size: 9px;
+    padding: 6px 8px;
+  }
+  .page {
+    padding: 22px 16px;
+  }
+  .page-header {
+    margin-bottom: 20px;
+    align-items: center;
+  }
+  .page-header h1 {
+    font-size: 26px;
+  }
+  .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .eyebrow span {
+    display: none;
+  }
+  .subtitle {
+    font-size: 10px;
+  }
+  .header-tools .el-button {
+    height: 34px;
+    font-size: 10px;
+    padding: 0 10px;
+  }
+  .header-tools .app-icon {
+    width: 12px;
+  }
+  .metric-grid {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .metric-card {
+    padding: 15px;
+  }
+  .metric-card > strong {
+    font-size: 31px;
+    margin-top: 10px;
+  }
+  .metric-label {
+    font-size: 10px;
+  }
+  .metric-card p {
+    font-size: 8px;
+  }
+  .panel {
+    padding: 19px 16px;
+  }
+  .overview-grid,
+  .overview-bottom {
+    gap: 16px;
+  }
+  .garage-zones {
+    gap: 12px;
+  }
+  .garage-canvas {
+    padding: 16px 10px 10px;
+  }
+  .garage-sign {
+    font-size: 7px;
+  }
+  .zone-heading {
+    font-size: 9px;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .bay-grid {
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 5px;
+  }
+  .parking-bay {
+    height: 108px;
+  }
+  .parking-bay strong {
+    font-size: 11px;
+  }
+  .map-legend {
+    font-size: 8px;
+    gap: 9px;
+  }
+  .floor-switch button {
+    padding: 5px 9px;
+    min-height: 30px;
+  }
+  .workbench-rail,
+  .entry-controls {
+    grid-template-columns: 1fr;
+  }
+  .owner-link {
+    grid-column: auto;
+  }
+  .arrival-card h2 br {
+    display: none;
+  }
+  .arrival-card h2 {
+    font-size: 22px;
+    margin: 14px 0 10px;
+  }
+  .arrival-card {
+    padding: 22px;
+  }
+  .quick-find {
+    padding: 22px;
+  }
+  .entry-layout,
+  .checkout-layout {
+    gap: 16px;
+  }
+  .type-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .search-row {
+    flex-wrap: nowrap;
+  }
+  .location-hero {
+    padding: 20px;
+  }
+  .location-number strong {
+    font-size: 35px;
+  }
+  .location-actions {
+    flex-wrap: wrap;
+  }
+  .location-panel {
+    min-height: 360px;
+  }
+  .checkout-steps {
+    padding: 15px 10px;
+  }
+  .checkout-steps > div {
+    flex-direction: column;
+    gap: 7px;
+  }
+  .checkout-steps > div:not(:last-child)::after {
+    display: none;
+  }
+  .checkout-steps strong {
+    font-size: 9px;
+  }
+  .receipt {
+    padding: 22px;
+  }
+  .receipt-total {
+    margin: 10px -22px 0;
+    padding: 24px 22px;
+  }
+  .receipt-total > strong {
+    font-size: 30px;
+  }
+  .receipt-vehicle {
+    flex-wrap: wrap;
+  }
+  .receipt-times {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+  .receipt-times strong {
+    margin-top: 6px;
+  }
+  .receipt-empty {
+    padding: 60px 10px;
+  }
+  .business-pages .el-tab-pane:not(#pane-overview):not(#pane-entry):not(#pane-billing) {
+    padding: 21px 16px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-footer {
+    flex-direction: column;
+    gap: 5px;
+  }
+  .traffic-column small {
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    min-height: 54px;
+    height: auto;
+    font-size: 11px;
+  }
+  .breadcrumb {
+    font-size: 10px;
+  }
+  .page-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .subtitle {
+    font-size: 12px;
+  }
+  .metric-label {
+    font-size: 11px;
+  }
+  .metric-card p {
+    font-size: 10px;
+  }
+  .map-caption {
+    font-size: 10px;
+  }
+  .sidebar nav button {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

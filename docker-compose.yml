@@ -229,6 +229,7 @@ services:
       BILLING_SERVICE_URI: "http://billing-service:18083"
       PASS_SERVICE_URI: "http://pass-service:18084"
       ANALYTICS_SERVICE_URI: "http://analytics-service:18085"
+      FRONTEND_SERVICE_URI: "http://frontend:80"
     ports:
       - "18080:18080"   # 宿主机侧做网关烟测的入口
     depends_on:

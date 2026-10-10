@@ -6,7 +6,7 @@
 
 先读 [项目统一契约](AGENTS.md)、[业务规则](docs/decisions.md)、[API v1](docs/api-contract.md) 和 [用例规约](docs/use-cases.md)。
 
-下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。[界面设计记录](docs/ui-design.md) 包含机场导视配色、真实车位立体/平面示意、车辆位置卡、票据式账单、结算进度与动效取舍。快捷入口用于导航，不是权限控制。
+下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。[前端结构](frontend/README.md)说明页面、共享状态、API 与样式的文件边界；[界面设计记录](docs/ui-design.md) 包含机场导视配色、真实车位立体/平面示意、车辆位置卡、票据式账单、结算进度与动效取舍。快捷入口用于导航，不是权限控制。
 
 ## 模块与所有权
 
@@ -50,9 +50,9 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 启动 analytics 前在本机环境变量中设置 `REDIS_PASSWORD`，不要将真实密码写入仓库。可按需设置 `REDIS_HOST`、`REDIS_PORT`、`REDIS_CONNECT_TIMEOUT`、`REDIS_TIMEOUT` 和 `ANALYTICS_REDIS_TTL`；默认值见 [analytics 配置](analytics-service/src/main/resources/application.yml)。Redis 是可选缓存，其健康项不决定服务整体健康状态，故障会在日志记录。`analytics-service` 新增 BOM 管理的 Redis starter 与 Jackson Java Time 模块：前者提供连接与模板，后者保持报表 `OffsetDateTime` 的时区语义。
 
-Windows 本机没有 Docker/WSL；Ubuntu 虚拟机已运行 Compose 部署，Windows 经网关烟测通过。Sentinel 曾在真实 MySQL 并发预约回归中引发 Feign 解码错误，已回退，当前不宣称启用熔断。
+Windows Docker Desktop 已于 2026-10-10 实测本仓库 Compose：MySQL、Redis、五个业务服务和 gateway 均 healthy；前端、网关根路径及静态资源返回 200，网关烟测 12 项通过。Ubuntu 虚拟机也有独立部署记录。Sentinel 曾在真实 MySQL 并发预约回归中引发 Feign 解码错误，已回退，当前不宣称启用熔断。
 
-## Docker Compose（Ubuntu 虚拟机）
+## Docker Compose（Windows Docker Desktop / Ubuntu 虚拟机）
 
 [`docker-compose.yml`](docker-compose.yml) 默认编排 MySQL 8.4、Redis、五个业务服务、gateway 与 Nginx 前端。VM 部署采用固定服务地址；Nacos 是单独的可选 profile，**本次 VM 未部署和验证该 profile**。Java 镜像直接复制六个已编译 JAR，前端镜像复制 `frontend/dist`；容器构建不下载 Maven/npm 依赖。因此首次运行前须先准备构建产物：
 
@@ -79,7 +79,7 @@ curl -fsS http://127.0.0.1:8080/
 
 容器内部使用 `mysql:3306`、`redis:6379` 和 Compose DNS 服务名；浏览器访问 `http://<虚拟机地址>:8080/`，Nginx 将 `/api/` 转给 gateway。MySQL 数据卷首次创建时执行五库建库脚本和服务专用账号脚本；已有旧数据卷不会重复执行这两份初始化脚本。服务自己的 `schema.sql` 按 `spring.sql.init.mode=always` 在每次启动时运行。业务参数仍由本地配置兜底。
 
-Windows 已对 VM `192.168.125.129` 运行 `pwsh -NoProfile -File .\scripts\smoke-gateway.ps1 -GatewayUrl http://192.168.125.129:18080`，脚本退出码 0，11 个断言全部 PASS；前端首页 HTTP 200，前端 `/api/v1/spaces/status` 返回 `code=OK`。VM 侧容器启动与健康状态由 VM agent 报告；Windows 本机没有 Docker CLI，未独立读取 `docker compose ps`。完整边界见 [交接记录](docs/agent-handoff.md) 与 [容器说明](docker/README.md)。
+Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 已占用 3306，可用一个忽略的本地覆盖文件把宿主端口改为 13306，容器内部仍保持 `mysql:3306`。2026-10-10 在 Windows 上独立执行 `docker compose ps`，MySQL、Redis、五个业务服务和 gateway 均 healthy；`/` 与页面静态资源 HTTP 200，网关烟测 12 项通过。此前对 VM `192.168.125.129` 的独立烟测也通过，但 VM 运行版本与本机后续修改须分别核对。完整边界见 [交接记录](docs/agent-handoff.md) 与 [容器说明](docker/README.md)。
 
 ## 验证与演示
 

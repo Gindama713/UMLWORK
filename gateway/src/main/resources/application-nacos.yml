@@ -9,6 +9,10 @@ spring:
       server:
         webflux:
           routes:
+            - id: frontend
+              uri: ${FRONTEND_SERVICE_URI:http://localhost:5173}
+              predicates:
+                - Path=/,/assets/**,/favicon.ico,/@vite/**,/@id/**,/@fs/**,/src/**,/node_modules/**
             - id: spaces
               uri: lb://space-service
               predicates:
