@@ -1,5 +1,7 @@
 # GRASP 职责分配静态审计（【AI-辅助】草稿）
 
+> 2026-10-11 后续修正：下文第 7 项的 pass→space 公共接口调用已改为等价的 `GET /internal/v1/spaces`；契约、实现、图 10/15 和边界测试已同步。下文保留 10 月 9 日审计原貌，运行证据见 `docs/agent-handoff.md`。
+
 审计日期：2026-10-09。对象是当前仓库六个后端模块的 36 个 `src/main/java` 文件；7 个 `src/test/java` 文件只用于交叉核对，共 43 个文件、3447 行。前端、SQL 和模型不是代码审计对象，但用 `models/15-design-classes.puml` 核对了类图。**GRASP（General Responsibility Assignment Software Patterns）是九项职责分配原则，不是要安装或“接入”的框架。**下文判断的是职责分配是否合理，不声称“实现了 GRASP 框架”。`docs/code-audit.md` 的旧联调记录不等于本次静态审计证据。
 
 审计方法：逐文件读取主代码，检查构造器字段、方法调用、HTTP 路径、事务边界和实体所有权；用测试方法及断言交叉核对；以源码行号、`rg` 计数和 Maven 实际输出定位。直接依赖数只计**构造器注入的外部协作者**（Feign、仓储、JdbcTemplate、缓存、幂等器、计费器），不计 DTO、配置值、日志器、Java 标准库或框架注解。此口径是类级静态计数，不等于运行时请求数或模块构建依赖数。项目规则仍以 `AGENTS.md`、`docs/api-contract.md`、`docs/decisions.md` 为准。

@@ -19,6 +19,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 })
 class SpaceOperationsTest {
     @Autowired SpaceOperations operations;
+    @Autowired SpaceController controller;
+
+    @Test
+    void internalListKeepsOccupiedReservationSpacesVisible() {
+        var space = operations.create("RESERVATION", "P3", "D",
+                "D-" + UUID.randomUUID().toString().substring(0, 8), UUID.randomUUID().toString());
+        operations.occupy(space.spaceId(), UUID.randomUUID().toString(), UUID.randomUUID().toString());
+        var internal = controller.internalSpaces("RESERVATION").data();
+        assertEquals(controller.spaces("RESERVATION").data(), internal);
+        assertEquals("OCCUPIED", internal.stream().filter(s -> s.spaceId().equals(space.spaceId()))
+                .findFirst().orElseThrow().status());
+    }
 
     @Test
     void occupancyAndChargingAreAtomicAndIdempotent() {

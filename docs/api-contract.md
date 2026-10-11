@@ -17,6 +17,7 @@
 | 方法与路径 | 输入 | data | 要点 |
 |---|---|---|---|
 | GET /api/v1/spaces?type=NORMAL | type 可选：NORMAL、ACCESSIBLE、CHARGING、RESERVATION | [{spaceId,type,floor,zone,number,status}] | 只读，不替代预约冲突检查 |
+| GET /internal/v1/spaces?type=RESERVATION | type 必填；类型枚举同公开列表 | 同公开列表，包含 AVAILABLE、OCCUPIED、OUT_OF_SERVICE | pass-service 查询物理预约位及当前状态；未来时段冲突仍由 pass 自有库判断，不能改用仅返回 AVAILABLE 的接口 |
 | POST /api/v1/spaces | {type,floor,zone,number} | {spaceId,type,floor,zone,number,status} | 管理员演示创建物理车位，初始 AVAILABLE；编号唯一；CHARGING 同一事务创建配套充电桩 |
 | PATCH /api/v1/spaces/{spaceId}/service-status | {status} | 同上 | status 仅 AVAILABLE/OUT_OF_SERVICE；OCCUPIED 不可停用，保留历史而不物理删除 |
 | GET /internal/v1/spaces/available?type=NORMAL | 必填 type | 同上，仅 AVAILABLE | 普通入场不得取 RESERVATION 位 |

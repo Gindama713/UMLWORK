@@ -1,6 +1,11 @@
-# Agent 交接记录（2026-10-10，当前可接手）
+# Agent 交接记录（2026-10-11，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-11：预约服务只读接口分层修正
+
+- **UC-05，图 10/15**：pass-service 的 `SpaceClient` 改走新增的 `GET /internal/v1/spaces?type=RESERVATION`，space-service 在 `SpaceController` 复用原公开列表逻辑，返回同一字段与全部当前状态。未来时间窗冲突仍由 pass 自有数据库判断；不能改用仅返回 AVAILABLE 的接口。无业务状态、表、费率和公开接口变化；新增内部 GET 已先写入 `docs/api-contract.md`。设计顺序图 10、space 类图 15 源码与 PNG 已同步，PlantUML 1.2024.3 `-checkonly`、渲染通过并实际打开图片核对。
+- **测试**：space 新增“内部列表仍返回 OCCUPIED 预约位”，pass 新增“OCCUPIED 可订未来时段、OUT_OF_SERVICE 拒绝”；`mvnw.cmd -pl space-service,pass-service -am test` 两模块各 5 条、0 失败，打包成功。随后全模块 `mvnw.cmd test` 为 20 条、0 失败，原始输出在忽略的 `target/local-runtime/verify-full-20261011.log`。Windows Docker Desktop 只重建 space/pass，两容器均 healthy；从 pass 容器 GET 新内部路径得到 `code=OK`、2 个预约位；经 gateway 创建预约得到 `PENDING_PAYMENT`，随即取消得到 `CANCELLED`（预约 ID `e36ed292-fca8-4320-9d92-4d5929926ab5`）。`scripts/smoke-gateway.ps1` 12 项 PASS，账单停车 1000 分 + 充电 300 分 = 应付 1300 分，原始输出在 `target/local-runtime/smoke-internal-spaces.log`。原有三个未跟踪提示词文件未改。
 
 ## 2026-10-11：提交验证流程
 

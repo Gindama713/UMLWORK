@@ -7,7 +7,7 @@ participant "SpaceClient（只读）" as space
 database "parking_pass" as db
 车主 -> controller : POST /api/v1/passes/reservations
 controller -> pass : reserve(request,key)
-pass -> space : GET /api/v1/spaces?type=RESERVATION
+pass -> space : GET /internal/v1/spaces?type=RESERVATION
 space --> pass : 车位类型与当前状态
 pass -> db : 锁定 reservation_lock(spaceId)
 pass -> db : 检查 [start,end) 重叠

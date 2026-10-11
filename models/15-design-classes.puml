@@ -118,6 +118,7 @@ skinparam classAttributeIconSize 0
 package "space-service" {
   class SpaceController {
     -operations: SpaceOperations
+    +internalSpaces(type: String): ApiResponse<List<SpaceSummary>>
     +occupy(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
     +release(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
     +settle(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<ChargingFeeView>

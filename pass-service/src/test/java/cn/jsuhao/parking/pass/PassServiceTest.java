@@ -29,6 +29,20 @@ class PassServiceTest {
     @MockitoBean SpaceClient spaces;
 
     @Test
+    void futureReservationCanUseOccupiedSpaceButNotOutOfServiceSpace() {
+        String occupiedId = UUID.randomUUID().toString();
+        String offlineId = UUID.randomUUID().toString();
+        when(spaces.spaces(eq("RESERVATION"))).thenReturn(ApiResponse.ok(List.of(
+                new SpaceView(occupiedId, "RESERVATION", "P2", "D", "D-020", "OCCUPIED"),
+                new SpaceView(offlineId, "RESERVATION", "P2", "D", "D-021", "OUT_OF_SERVICE"))));
+        OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC).plusDays(4);
+        assertEquals("PENDING_PAYMENT", service.reserve(key(), new CreateReservation(
+                "苏F12345", occupiedId, start, start.plusHours(1))).status());
+        assertEquals("SPACE_UNAVAILABLE", assertThrows(ApiException.class, () -> service.reserve(key(),
+                new CreateReservation("苏G12345", offlineId, start, start.plusHours(1)))).code());
+    }
+
+    @Test
     void overlappingReservationIsRejectedAndFailedEntryCanReleaseConsumption() {
         String spaceId = UUID.randomUUID().toString();
         when(spaces.spaces(eq("RESERVATION"))).thenReturn(ApiResponse.ok(List.of(

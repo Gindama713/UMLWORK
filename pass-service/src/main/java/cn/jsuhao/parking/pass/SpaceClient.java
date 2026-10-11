@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(name = "space-service", url = "${space-service.url:}")
 interface SpaceClient {
-    @GetMapping("/api/v1/spaces")
+    @GetMapping("/internal/v1/spaces")
     ApiResponse<List<SpaceView>> spaces(@RequestParam("type") String type);
 }
 

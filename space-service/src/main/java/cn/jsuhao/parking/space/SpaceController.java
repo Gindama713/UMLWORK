@@ -33,6 +33,11 @@ public class SpaceController {
         return ApiResponse.ok(operations.spaces(type, false).stream().map(SpaceSummary::from).toList());
     }
 
+    @GetMapping("/internal/v1/spaces")
+    public ApiResponse<List<SpaceSummary>> internalSpaces(@RequestParam String type) {
+        return spaces(type);
+    }
+
     @PostMapping("/api/v1/spaces")
     public ApiResponse<SpaceOperations.SpaceView> create(
             @RequestHeader("Idempotency-Key") String key, @RequestBody CreateSpace request) {
