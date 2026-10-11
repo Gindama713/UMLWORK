@@ -2,6 +2,10 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-11：报告表 5-1 核查草稿
+
+- 新增 `docs/model-code-consistency-draft.md`，按 access、space、billing、pass、analytics 五个权威服务逐行列出 UML 图、源码、独立 schema、测试与核查结论；同步 `docs/report-outline.md` 的 5.2 和缺口清单。静态定位与现有 20 条测试、Docker 链路证据支撑所列语义；不是报告正文或本人独立核查，负责人需复核后使用。无接口、状态、表和模型变化。
+
 ## 2026-10-11：预约服务只读接口分层修正
 
 - **UC-05，图 10/15**：pass-service 的 `SpaceClient` 改走新增的 `GET /internal/v1/spaces?type=RESERVATION`，space-service 在 `SpaceController` 复用原公开列表逻辑，返回同一字段与全部当前状态。未来时间窗冲突仍由 pass 自有数据库判断；不能改用仅返回 AVAILABLE 的接口。无业务状态、表、费率和公开接口变化；新增内部 GET 已先写入 `docs/api-contract.md`。设计顺序图 10、space 类图 15 源码与 PNG 已同步，PlantUML 1.2024.3 `-checkonly`、渲染通过并实际打开图片核对。
