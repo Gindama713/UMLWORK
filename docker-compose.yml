@@ -7,8 +7,7 @@
 #   4) curl -s localhost:18080/actuator/health
 #
 # 设计说明：
-#   * 默认【不启动 Nacos】。项目交接记录已实测：Nacos 8848 未运行时六个服务 /actuator/health 全部 UP，
-#     因为 spring.config.import 用的是 optional:nacos:... 且 NACOS_ENABLED 默认 false。
+#   * 默认【不启动 Nacos】。配置中心导入仅在 nacos-config profile 启用；注册发现由 NACOS_ENABLED 控制。
 #     Nacos profile 尚未联调；单独启动它不会自动切换固定地址路由和 Feign 地址。
 #   * 容器内数据库地址是 mysql:3306，绝不能沿用配置默认的 localhost/127.0.0.1。
 #   * 密码只来自未提交的 .env（.gitignore 已忽略）。
@@ -28,11 +27,6 @@ x-java-common: &java-common
       max-file: "3"
   environment: &java-env
     TZ: Asia/Shanghai
-    # 本编排有意不部署 Nacos（见 docker/README.md），而各服务的
-    # spring.config.import: optional:nacos:... 会持续重试并打出 ERROR 级噪音。
-    # 这里把 nacos 客户端日志压掉，避免掩盖真正的故障。
-    # ⚠️ 一旦启用 --profile nacos 做服务发现，请改为 WARN。
-    LOGGING_LEVEL_COM_ALIBABA_NACOS: "OFF"
     # 单容器内存受限，显式压制 JVM 占用；SerialGC + TieredStopAtLevel=1 降低 JIT 内存与启动开销
     JAVA_TOOL_OPTIONS: >-
       -XX:MaxRAMPercentage=55 -XX:+UseSerialGC -XX:TieredStopAtLevel=1

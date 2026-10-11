@@ -1,0 +1,7 @@
+spring:
+  cloud:
+    nacos:
+      config:
+        enabled: true
+  config:
+    import: optional:nacos:pass-service.properties

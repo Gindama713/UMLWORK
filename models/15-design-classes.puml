@@ -9,6 +9,7 @@ package "access-service" {
     ~locate(plateNumber: String): Envelope<SessionView>
     ~requestExit(sessionId: String, request: ExitRequest, key: String): Envelope<ExitView>
     ~complete(sessionId: String, request: CompleteRequest, key: String): Envelope<CompleteView>
+    ~exceptions(sessionId: String): Envelope<List<ExceptionView>>
   }
   class AccessService {
     -repo: AccessRepository
@@ -19,6 +20,7 @@ package "access-service" {
     ~locate(rawPlate: String): SessionView
     ~requestExit(id: String, input: ExitRequest, key: String): ExitView
     ~completeExit(id: String, input: CompleteRequest, key: String): CompleteView
+    ~exceptions(id: String): List<ExceptionView>
   }
   class AccessRepository {
     -jdbc: JdbcTemplate
@@ -26,7 +28,8 @@ package "access-service" {
     ~insert(id: String, plate: String, type: String, reservationId: String, entry: OffsetDateTime, key: String, payload: String): void
     ~chooseSpace(id: String, space: SpaceView): void
     ~reserveExit(id: String, intent: ExitIntent): ExitIntent
-    ~exitRequested(id: String, exit: OffsetDateTime, billId: String, exception: String, operator: String, monthlyPassId: String): void
+    ~exitRequested(id: String, exit: OffsetDateTime, billId: String, exception: String, operator: String, monthlyPassId: String, exceptions: List<ExceptionView>): void
+    ~exceptions(id: String): List<ExceptionView>
     ~paid(id: String): void
     ~closed(id: String): void
   }
@@ -158,6 +161,7 @@ package "pass-service" {
   class PassController {
     -service: PassService
     ~reserve(key: String, request: CreateReservation): ApiResponse<ReservationView>
+    ~reservation(id: String): ApiResponse<ReservationView>
     ~pay(id: String, key: String, request: SimulatedPayment): ApiResponse<ReservationPaymentView>
     ~createMonthly(key: String, request: CreateMonthlyPass): ApiResponse<MonthlyPassView>
   }
@@ -170,6 +174,8 @@ package "pass-service" {
     -paymentHoldMinutes: int
     -monthlyDurationDays: int
     ~reserve(key: String, request: CreateReservation): ReservationView
+    ~reservationView(rawId: String): ReservationView
+    ~expireDue(): void
     ~eligibility(plateNumber: String, entryTime: OffsetDateTime, exitTime: OffsetDateTime, spaceType: String, parkingSessionId: String): EligibilityView
     ~createMonthly(key: String, request: CreateMonthlyPass): MonthlyPassView
     ~deduct(key: String, id: String, request: Deduction): DeductionView

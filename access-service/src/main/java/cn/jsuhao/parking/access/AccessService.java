@@ -173,8 +173,17 @@ class AccessService {
             BillView bill = required(billing.createBill(id,
                     new BillRequest(id, session.entry(), intent.exit(), intent.benefitType(),
                             intent.prepaidCents(), chargingCents, intent.exceptionType())));
+            if (bill.rateVersion() == null || bill.rateVersion().isBlank() || bill.feeItems() == null)
+                throw failure("DEPENDENCY_UNAVAILABLE", HttpStatus.SERVICE_UNAVAILABLE, "账单明细或费率版本缺失");
+            List<ExceptionView> exceptions = new java.util.ArrayList<>();
+            if ("LOST_CARD".equals(intent.exceptionType()))
+                exceptions.add(new ExceptionView(id, "LOST_CARD", intent.operator(), session.entry(),
+                        intent.exit(), feeAmount(bill, "LOST_CARD"), bill.rateVersion(), "APPLIED"));
+            if (bill.feeItems().stream().anyMatch(item -> "LONG_STAY".equals(item.name())))
+                exceptions.add(new ExceptionView(id, "LONG_STAY", "SYSTEM", session.entry(),
+                        intent.exit(), feeAmount(bill, "LONG_STAY"), bill.rateVersion(), "APPLIED"));
             repo.exitRequested(id, intent.exit(), bill.billId(), intent.exceptionType(), intent.operator(),
-                    intent.monthlyPassId());
+                    intent.monthlyPassId(), exceptions);
             return exitView(get(id));
         } catch (RuntimeException error) {
             throw dependencyOrOriginal(error);
@@ -242,6 +251,16 @@ class AccessService {
         if (from == null || to == null || !to.toInstant().isAfter(from.toInstant()))
             throw invalid("统计范围无效");
         return repo.traffic(from, to);
+    }
+
+    List<ExceptionView> exceptions(String id) {
+        get(id);
+        return repo.exceptions(id);
+    }
+
+    private static long feeAmount(BillView bill, String name) {
+        return bill.feeItems().stream().filter(item -> name.equals(item.name()))
+                .mapToLong(FeeItem::amountCents).sum();
     }
 
     private static void checkExitInput(OffsetDateTime exit, String exception, String operator,

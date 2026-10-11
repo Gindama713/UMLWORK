@@ -4,8 +4,6 @@ server:
 spring:
   application:
     name: space-service
-  config:
-    import: optional:nacos:space-service.properties
   datasource:
     url: ${SPACE_DB_URL:jdbc:mysql://127.0.0.1:3306/parking_space?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
     username: ${SPACE_DB_USER:root}
@@ -16,7 +14,10 @@ spring:
   cloud:
     nacos:
       config:
+        enabled: false
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        import-check:
+          enabled: false
       discovery:
         enabled: ${NACOS_ENABLED:false}
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}

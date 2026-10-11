@@ -48,6 +48,17 @@ package "parking_access" {
     prepaid_cents
     monthly_pass_id
   }
+  entity exit_exception {
+    * parking_session_id : UUID <<PK, FK>>
+    * exception_type : string <<PK>>
+    --
+    operator_name
+    entry_time
+    exit_time
+    amount_cents
+    rate_version
+    result
+  }
   entity parking_session {
     * id : UUID <<PK>>
     --
@@ -57,6 +68,7 @@ package "parking_access" {
     status
   }
   parking_session ||--o| exit_intent
+  parking_session ||--o{ exit_exception
 }
 package "parking_pass" {
   entity reservation {

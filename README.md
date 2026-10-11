@@ -40,7 +40,7 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 五个服务与网关设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=实际地址`；调用方把 `SPACE_SERVICE_URL`、`BILLING_SERVICE_URL`、`PASS_SERVICE_URL`、`ACCESS_SERVICE_URL` 设置为空值。网关用 `--spring.profiles.active=nacos` 启动，路由切换为 `lb://服务名`。本机 Nacos 3.1.1 standalone 的客户端端口为 8848，控制台端口为 8080。2026-09-30 实测六实例注册与网关发现，证据和控制台截图状态见 [交接记录](docs/agent-handoff.md)。
 
-六个模块通过 `spring.config.import=optional:nacos:<spring.application.name>.properties` 导入同名 Data ID（`DEFAULT_GROUP`），配置中心地址使用 `NACOS_SERVER_ADDR`。将 [config/nacos](config/nacos) 内三个示例文件分别以原文件名发布到 Nacos；它们只含 billing 的 16 项费率、space 的 2 项充电参数、pass 的 4 项预约/月卡参数，不含数据库密码。gateway、access、analytics 没有业务费率，允许对应 Data ID 暂不存在。本地 application.yml 保留相同前缀和默认值，Nacos 不可用时仍可启动。新建账单按当前配置生成费率版本与金额的同一快照，旧账单不重算；space/pass 的 `@Value` 参数由 `@RefreshScope` 在配置变更后重新注入。2026-10-07 的实际热更新和离线启动结果见交接记录。配置中心运行与服务发现可分别使用：`NACOS_ENABLED=false` 只关闭注册发现，不关闭可选配置导入。
+配置中心单独启用：给需要读取 Nacos 配置的应用增加 `--spring.profiles.active=nacos-config`；网关同时使用服务发现和配置中心时用 `--spring.profiles.active=nacos,nacos-config`。六个模块各自的 `application-nacos-config.yml` 通过 `optional:nacos:<spring.application.name>.properties` 导入同名 Data ID（`DEFAULT_GROUP`），地址使用 `NACOS_SERVER_ADDR`。将 [config/nacos](config/nacos) 内三个示例文件分别以原文件名发布到 Nacos；它们含 billing 的 16 项费率、space 的 2 项充电参数、pass 的 5 项预约/月卡参数（含到期扫描间隔），不含数据库密码。gateway、access、analytics 没有业务费率，允许对应 Data ID 暂不存在。默认 profile 不连接 Nacos 配置中心；本地 application.yml 保留相同前缀和默认值。服务发现由 `NACOS_ENABLED` 独立控制。新建账单按当前配置生成费率版本与金额的同一快照，旧账单不重算；space/pass 的 `@Value` 参数由 `@RefreshScope` 在配置变更后重新注入。2026-10-07 的热更新证据属于改为显式 profile 之前的运行方式；新 profile 的热更新需重新实测。
 
 在项目根目录运行 `./scripts/verify-nacos-pricing-refresh.ps1` 可复核费率热更新；脚本要求 Nacos 中已经发布 v1 演示基线，测试结束会恢复原配置。它只创建新的模拟账单，不修改旧账单。
 
@@ -86,7 +86,7 @@ Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 
 - GitHub Actions 的 [`Verify`](.github/workflows/verify.yml) 在推送、PR 和手动触发时运行 Java 21 后端测试、Node 22 前端测试与构建；它使用 H2，不代替下面的真实 MySQL 与 Docker 联调。远端运行结果以 GitHub Actions 页面为准。
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
-- 20 条后端测试均通过（原有 16 条 + Redis 缓存 2 条 + 预约位内部查询边界 2 条）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
+- 23 条后端测试均通过（原有 20 条 + 异常留痕 1 条、预约到期及冲突边界 2 条）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
 - [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，22 张渲染图位于 `models/rendered/`；新增 17 号服务级出场进程顺序图，15 号源文件分别渲染五个服务的类图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。

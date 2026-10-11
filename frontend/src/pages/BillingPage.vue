@@ -10,6 +10,7 @@ const {
   session,
   bill,
   invoiceResult,
+  exceptions,
   exitResult,
   settlementStep,
   search,
@@ -77,6 +78,13 @@ const {
               }}{{ money(item.amountCents) }}</span
             >
           </div>
+        </div>
+        <div v-if="exceptions.length" class="receipt-exceptions">
+          <strong>异常处理记录</strong>
+          <p v-for="event in exceptions" :key="event.exceptionType">
+            {{ feeNames[event.exceptionType] }} · 处理人 {{ event.operator === 'SYSTEM' ? '系统自动判定' : event.operator }}
+            · {{ money(event.amountCents) }} · 已入账（{{ event.rateVersion }}）
+          </p>
         </div>
         <p v-if="bill.prepaidRefundCents" class="refund-note">
           应退预付差额

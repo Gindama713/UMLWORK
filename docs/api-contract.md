@@ -34,6 +34,7 @@
 |---|---|---|---|
 | POST /api/v1/access/{sessionId}/exit-requests | {exitTime,exceptionType?,operator?} | {parkingSessionId,billId,status,amountDueCents} | exceptionType: NONE/LOST_CARD；丢卡时 operator 必填；超长由 billing 自动识别；冻结后在 access 保存出场意图（时间、异常、权益快照）并转 `EXIT_PENDING_PAYMENT`，再请求账单；若 billing 不可用则返回 DEPENDENCY_UNAVAILABLE、状态保留且账单 ID 暂为空；重试按原意图恢复，改变时间/异常报 STATE_CONFLICT |
 | POST /api/v1/access/{sessionId}/complete-exit | {simulatedResult} | {parkingSessionId,billId,paymentId?,status,spaceReleased} | simulatedResult: SUCCESS/FAILURE；成功后释放，释放失败为 PAID_PENDING_RELEASE，重试不得二次扣费 |
+| GET /api/v1/access/{sessionId}/exceptions | — | [{parkingSessionId,exceptionType,operator,entryTime,exitTime,amountCents,rateVersion,result}] | 出账后只读异常处理快照；丢卡由输入的处理人登记，超长停车由 billing 账单明细判定并记处理人 SYSTEM；同一停车记录可同时有两种异常；result=APPLIED 表示特殊费用已写入账单，最终出场状态仍以停车记录为准 |
 | POST /internal/v1/billing/bills | {parkingSessionId,entryTime,exitTime,benefitType,prepaidCents,chargingCents,exceptionType} | BillView | benefitType: NONE/RESERVATION/MONTHLY；同 session 只建一账单 |
 | GET /internal/v1/billing/bills/{billId} | — | BillView | 供失败后恢复 |
 | GET /api/v1/billing/bills/{billId} | — | BillView | 页面查看账单明细，不重算 |
@@ -50,6 +51,7 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 | 方法与路径 | 输入 | data | 要点 |
 |---|---|---|---|
 | POST /api/v1/passes/reservations | {plateNumber,spaceId,startTime,endTime} | {reservationId,spaceId,status,prepaidCents} | 仅 RESERVATION 车位；时段冲突在 pass 自有库中串行化检查 |
+| GET /api/v1/passes/reservations/{id} | 预约 ID | 同上 | 查询当前持久化状态；过期扫描会将到期未预付/未入场的预约转为 EXPIRED，不更改 USED |
 | POST /api/v1/passes/reservations/{id}/pay | {simulatedResult} | {reservationId,status,paymentId} | SUCCESS 后 CONFIRMED；失败仍 PENDING_PAYMENT |
 | POST /api/v1/passes/reservations/{id}/cancel | {} | {reservationId,status,refundCents} | 开始前取消可退；幂等 |
 | POST /internal/v1/passes/reservations/{id}/consume | {plateNumber,entryTime,parkingSessionId} | {reservationId,spaceId,status,prepaidCents} | 仅 CONFIRMED 且匹配车牌/时间；重复同 session 幂等 |
@@ -83,6 +85,6 @@ space 与 billing 不调用其他业务服务；pass 只读查询 space；access
 
 2026-09-30 部署补充：接口路径、DTO、状态及错误语义不变。服务发现模式下，六个 Java 进程均以 `NACOS_ENABLED=true` 注册到同一 Nacos 3.1.1；四个 `*_SERVICE_URL` 置空后，access、pass、analytics 的 Feign 调用按服务名解析，网关 `nacos` profile 的 `lb://` 路由也按服务名解析。pass-service 必须含 Spring Cloud LoadBalancer（版本由根 BOM 管理），否则空 URL 的 Feign 客户端在启动时失败。该模式与默认固定本地地址模式使用同一组 HTTP 契约。
 
-2026-10-07 配置补充：六个应用导入同名 Nacos `.properties` Data ID（`DEFAULT_GROUP`，`optional:nacos:`），本地 application.yml 保留兜底值；只同步业务配置，不把数据库密码、状态枚举或接口 DTO 放入 Nacos。计费、充电与预约的新记录可读取刷新后的参数，已生成账单与充电会话保留原规则版本快照。配置中心不改变上述 HTTP 错误语义。
+配置中心运行约定：六个应用仅在 `nacos-config` profile 下导入同名 Nacos `.properties` Data ID（`DEFAULT_GROUP`，`optional:nacos:`）；默认 profile 不访问 Nacos 配置中心。本地 application.yml 保留兜底值；只同步业务配置，不把数据库密码、状态枚举或接口 DTO 放入 Nacos。计费、充电与预约的新记录读取当前参数，已生成账单与充电会话保留原规则版本快照。配置中心不改变上述 HTTP 错误语义。2026-10-07 热更新实测采用旧的默认导入方式，新 profile 须独立复测。
 
 2026-09-28 补充：出场顺序为核验权益 → space 冻结充电费用 → billing 创建不可变账单。冻结记录存 space 自有库；冻结与开始充电使用同一车位行锁串行化，无消息队列或分布式事务。冻结后下游失败，可重试出账，不能再新增充电；释放后保留快照供审计。

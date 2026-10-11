@@ -56,6 +56,11 @@ class AccessController {
         return Envelope.ok(service.completeExit(sessionId, request, key));
     }
 
+    @GetMapping("/api/v1/access/{sessionId}/exceptions")
+    Envelope<List<ExceptionView>> exceptions(@PathVariable String sessionId) {
+        return Envelope.ok(service.exceptions(sessionId));
+    }
+
     @GetMapping("/internal/v1/access/sessions")
     Envelope<List<TrafficSession>> traffic(@RequestParam OffsetDateTime from,
             @RequestParam OffsetDateTime to) {

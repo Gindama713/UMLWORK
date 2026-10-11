@@ -23,6 +23,11 @@ class PassController {
         return ApiResponse.ok(service.reserve(key, request));
     }
 
+    @GetMapping("/api/v1/passes/reservations/{id}")
+    ApiResponse<ReservationView> reservation(@PathVariable String id) {
+        return ApiResponse.ok(service.reservationView(id));
+    }
+
     @PostMapping("/api/v1/passes/reservations/{id}/pay")
     ApiResponse<ReservationPaymentView> pay(@PathVariable String id,
             @RequestHeader(value = "Idempotency-Key", required = false) String key,

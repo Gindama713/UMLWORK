@@ -567,6 +567,17 @@ code {
   color: #78944c;
 }
 
+.receipt-exceptions {
+  padding: 12px;
+  border-radius: 5px;
+  background: #fff6ee;
+  color: #795336;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.receipt-exceptions p { margin: 5px 0 0; }
+
 .refund-note {
   font-size: 10px;
   color: #799257;

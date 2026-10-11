@@ -7,7 +7,8 @@ PENDING_PAYMENT --> CANCELLED : 开始前取消
 PENDING_PAYMENT --> EXPIRED : 支付窗口过期
 CONFIRMED --> USED : 对应车牌入场核销
 CONFIRMED --> CANCELLED : 开始前取消并退款
-CONFIRMED --> EXPIRED : 到期未入场
+CONFIRMED --> EXPIRED : 到期未入场（定时扫描）
+note right of EXPIRED : pass-service 周期扫描落库；\n冲突查询仍按 [start,end) 判断
 USED --> CONFIRMED : 占位失败，核销补偿
 USED --> [*] : 完成停车
 CANCELLED --> [*]

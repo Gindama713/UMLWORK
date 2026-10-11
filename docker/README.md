@@ -57,7 +57,7 @@ curl -s localhost:18080/actuator/health
    初始化期间官方镜像跑的是 `skip-networking` 临时实例，因此那个 healthcheck 只在"真能连"时通过。
 
 3. **默认不启动 Nacos**：项目交接记录已实测「Nacos 8848 未运行时六个服务 health 全 UP」，
-   依据是 `spring.config.import: optional:nacos:...` + `NACOS_ENABLED` 默认 false，
+   依据是配置中心导入仅在 `nacos-config` profile，且 `NACOS_ENABLED` 默认 false，
    网关默认 profile 也用固定地址路由（`*_SERVICE_URI`）。
    可选 Nacos 容器尚未联调；单独启动该 profile 也不会自动切换网关和 Feign 的固定地址配置，不能据此声称服务发现已启用。
 

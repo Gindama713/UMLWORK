@@ -28,7 +28,11 @@ final class ApiModels {
     record BillRequest(String parkingSessionId, OffsetDateTime entryTime, OffsetDateTime exitTime,
                        String benefitType, long prepaidCents, long chargingCents, String exceptionType) {}
     record BillView(String billId, String parkingSessionId, String status, long amountDueCents,
-                    long prepaidRefundCents) {}
+                    long prepaidRefundCents, String rateVersion, List<FeeItem> feeItems) {}
+    record FeeItem(String name, long amountCents, String detail) {}
+    record ExceptionView(String parkingSessionId, String exceptionType, String operator,
+                         OffsetDateTime entryTime, OffsetDateTime exitTime, long amountCents,
+                         String rateVersion, String result) {}
     record PaymentRequest(String simulatedResult, String paymentSource) {}
     record PaymentView(String paymentId, String billId, String billStatus, String paymentStatus,
                        String paymentSource, long amountCents) {}

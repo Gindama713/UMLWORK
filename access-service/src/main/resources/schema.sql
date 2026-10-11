@@ -43,3 +43,17 @@ CREATE TABLE IF NOT EXISTS exit_intent (
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     FOREIGN KEY (parking_session_id) REFERENCES parking_session(id)
 );
+
+CREATE TABLE IF NOT EXISTS exit_exception (
+    parking_session_id CHAR(36) NOT NULL,
+    exception_type VARCHAR(20) NOT NULL,
+    operator_name VARCHAR(60) NOT NULL,
+    entry_time DATETIME(6) NOT NULL,
+    exit_time DATETIME(6) NOT NULL,
+    amount_cents BIGINT NOT NULL,
+    rate_version VARCHAR(80) NOT NULL,
+    result VARCHAR(20) NOT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (parking_session_id, exception_type),
+    FOREIGN KEY (parking_session_id) REFERENCES parking_session(id)
+);

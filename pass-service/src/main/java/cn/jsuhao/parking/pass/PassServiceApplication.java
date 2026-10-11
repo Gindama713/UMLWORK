@@ -3,9 +3,11 @@ package cn.jsuhao.parking.pass;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableFeignClients
+@EnableScheduling
 public class PassServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(PassServiceApplication.class, args);

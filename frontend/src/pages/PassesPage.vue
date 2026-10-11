@@ -15,6 +15,7 @@ const {
   money,
   createReservation,
   payReservation,
+  refreshReservation,
   cancelReservation,
   createPass,
   refreshPass,
@@ -41,6 +42,7 @@ const {
     <h3>预约凭证</h3>
     <p>预付金额 {{ money(reservation.prepaidCents) }}</p>
     <code>{{ reservation.reservationId }}</code>
+    <el-button :loading="busy" @click="refreshReservation">刷新预约状态</el-button>
     <p class="muted">支付成功后可使用预约凭证登记入场。</p>
     <el-button v-if="reservation.status === 'CONFIRMED'" @click="page = 'entry'"
       >使用预约入场 →</el-button

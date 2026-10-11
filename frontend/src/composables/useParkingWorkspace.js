@@ -70,6 +70,7 @@ export function useParkingWorkspace() {
   const monthlyLedger = ref([])
   const charging = ref(null)
   const invoiceResult = ref(null)
+  const exceptions = ref([])
   const exitResult = ref(null)
   const dashboardReport = ref(null)
   const dashboardError = ref('')
@@ -260,6 +261,15 @@ export function useParkingWorkspace() {
       return reservation.value
     })
   }
+  async function refreshReservation() {
+    await action(async () => {
+      if (!reservation.value) throw new Error('请先创建预约')
+      reservation.value = await api(`/api/v1/passes/reservations/${reservation.value.reservationId}`)
+      if (['EXPIRED', 'CANCELLED'].includes(reservation.value.status) &&
+          entry.reservationId === reservation.value.reservationId) entry.reservationId = ''
+      return reservation.value
+    })
+  }
   async function cancelReservation() {
     await action(async () => {
       if (!reservation.value) throw new Error('请先创建预约')
@@ -341,6 +351,9 @@ export function useParkingWorkspace() {
     search.plateNumber = data.plateNumber
     invoice.billId = data.billId || ''
     bill.value = data.billId ? await api(`/api/v1/billing/bills/${data.billId}`) : null
+    exceptions.value = data.billId
+      ? await api(`/api/v1/access/${data.parkingSessionId}/exceptions`)
+      : []
     exitResult.value = data.billId
       ? { parkingSessionId: data.parkingSessionId, status: data.status }
       : null
@@ -379,6 +392,7 @@ export function useParkingWorkspace() {
         operator: exit.operator || undefined,
       })
       bill.value = await api(`/api/v1/billing/bills/${data.billId}`)
+      exceptions.value = await api(`/api/v1/access/${exit.sessionId}/exceptions`)
       invoice.billId = data.billId
       exitResult.value = data
       if (session.value?.parkingSessionId === data.parkingSessionId)
@@ -446,6 +460,7 @@ export function useParkingWorkspace() {
     monthlyLedger,
     charging,
     invoiceResult,
+    exceptions,
     exitResult,
     dashboardReport,
     dashboardError,
@@ -479,6 +494,7 @@ export function useParkingWorkspace() {
     setSpaceStatus,
     createReservation,
     payReservation,
+    refreshReservation,
     cancelReservation,
     createPass,
     refreshPass,

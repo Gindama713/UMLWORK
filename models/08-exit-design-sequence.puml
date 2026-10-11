@@ -18,7 +18,8 @@ alt billing 暂不可用
   access --> 车主 : 保留原出场意图，稍后重试
 else 出账成功
   billing --> access : billId, amountDueCents, prepaidRefundCents
-  access -> db : 保存 billId
+  access -> db : 原子保存 billId 与异常处理快照
+  note right of db : 丢卡记录人工处理人；超长费用由账单明细判定，处理人 SYSTEM
 end
 access --> 车主 : 账单摘要（出账成功时）
 opt 已生成账单，车主请求完成出场

@@ -2,7 +2,7 @@
 
 本目录存放可编辑的 PlantUML 源文件。当前 01～17 与服务依赖图均为【AI-辅助】实施草案，覆盖总体用例、领域模型、两类状态图、三个核心用例的 SSD/设计顺序图、跨服务活动图、组件图、部署图、通信图、五个服务的设计类图、独立数据库 ER 概念图和出场结算的进程视图顺序图（17）。15 号源文件用五组 `@startuml` / `@enduml` 分别生成 access、billing、space、pass、analytics 的设计类图，避免宽幅合图在报告中无法阅读。
 
-2026-10-11：图 10 的 pass→space 消息改成 `/internal/v1/spaces`；图 15 的 space 类图加入 `SpaceController.internalSpaces`。PlantUML 1.2024.3 对两份源文件 `-checkonly`、重渲染成功，并打开对应 PNG 核对排版；其余图纸未变。
+2026-10-11：图 10 的 pass→space 消息改成 `/internal/v1/spaces`；图 15 的 space 类图加入 `SpaceController.internalSpaces`。同日后续变更把预约定时到期标在图 04、pass 类图 15，把异常处理快照标在图 08、access 类图 15 和独立数据库 ER 图 16。PlantUML 1.2024.3 对全部源文件 `-checkonly`、重渲染成功，已打开修改过的 PNG 核对排版。
 
 2026-10-07 已用本机 PlantUML 1.2024.3 对全部 18 个 `.puml` 源文件执行 `-checkonly`，并从同一源文件生成 `rendered/` 下的 22 张 PNG（15 号一份源产生五张图）；实际打开 15 号的五张类图和 17 号进程图核对文字与连线。负责人仍需逐图审核业务语义，补报告图题、正文引用和“模型—代码—测试”解释；图中任何与代码或数据库不一致的文字先修订源文件，再更新报告。
 

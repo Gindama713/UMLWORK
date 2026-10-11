@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:pass_test;MODE=MySQL;DB_CLOSE_DELAY=-1",
@@ -26,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 })
 class PassServiceTest {
     @Autowired PassService service;
+    @Autowired JdbcTemplate jdbc;
     @MockitoBean SpaceClient spaces;
 
     @Test
@@ -126,6 +130,45 @@ class PassServiceTest {
         var cancelled = service.cancel(key(), reservation.reservationId());
         assertEquals(500L, cancelled.refundCents());
         assertEquals(cancelled, service.cancel(key(), reservation.reservationId()));
+    }
+
+    @Test
+    void dueReservationsExpireWithoutAnotherBookingAndUsedOnesStayUsed() {
+        Instant now = Instant.now();
+        String unpaid = insertReservation("PENDING_PAYMENT", now.plusSeconds(3600),
+                now.plusSeconds(7200), now.minusSeconds(7200));
+        String unvisited = insertReservation("CONFIRMED", now.minusSeconds(7200),
+                now.minusSeconds(3600), now.minusSeconds(10800));
+        String used = insertReservation("USED", now.minusSeconds(7200),
+                now.minusSeconds(3600), now.minusSeconds(10800));
+        service.expireDue();
+        assertEquals("EXPIRED", service.reservationView(unpaid).status());
+        assertEquals("EXPIRED", service.reservationView(unvisited).status());
+        assertEquals("USED", service.reservationView(used).status());
+    }
+
+    @Test
+    void newReservationExpiresStartedUnpaidWindowBeforeConflictCheck() {
+        Instant now = Instant.now();
+        String old = insertReservation("PENDING_PAYMENT", now.minusSeconds(120),
+                now.plusSeconds(1800), now.minusSeconds(180));
+        String spaceId = jdbc.queryForObject("SELECT space_id FROM reservation WHERE reservation_id=?",
+                String.class, old);
+        when(spaces.spaces(eq("RESERVATION"))).thenReturn(ApiResponse.ok(List.of(
+                new SpaceView(spaceId, "RESERVATION", "P2", "B", "B-019", "AVAILABLE"))));
+        OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(5);
+        assertEquals("PENDING_PAYMENT", service.reserve(key(), new CreateReservation(
+                "苏K12345", spaceId, start, start.plusMinutes(20))).status());
+        assertEquals("EXPIRED", service.reservationView(old).status());
+    }
+
+    private String insertReservation(String status, Instant start, Instant end, Instant created) {
+        String id = key();
+        jdbc.update("INSERT INTO reservation(reservation_id,space_id,plate_number,start_time,end_time,"
+                        + "status,prepaid_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                id, key(), "苏J12345", Timestamp.from(start), Timestamp.from(end), status,
+                500, Timestamp.from(created), Timestamp.from(created));
+        return id;
     }
 
     private static String key() { return UUID.randomUUID().toString(); }

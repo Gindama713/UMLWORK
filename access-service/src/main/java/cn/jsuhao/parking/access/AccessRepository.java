@@ -107,14 +107,35 @@ class AccessRepository {
                 """, id);
     }
 
+    @Transactional
     void exitRequested(String id, OffsetDateTime exit, String billId, String exception,
-                       String operator, String monthlyPassId) {
+                       String operator, String monthlyPassId, List<ExceptionView> exceptions) {
         jdbc.update("""
                 UPDATE parking_session
                 SET exit_time=?,bill_id=?,exception_type=?,operator_name=?,monthly_pass_id=?,
                     status='EXIT_PENDING_PAYMENT'
                 WHERE id=? AND status='EXIT_PENDING_PAYMENT' AND bill_id IS NULL
                 """, utc(exit), billId, exception, operator, monthlyPassId, id);
+        for (ExceptionView event : exceptions) {
+            jdbc.update("""
+                    INSERT INTO exit_exception(parking_session_id,exception_type,operator_name,
+                        entry_time,exit_time,amount_cents,rate_version,result)
+                    VALUES (?,?,?,?,?,?,?,'APPLIED')
+                    ON DUPLICATE KEY UPDATE parking_session_id=parking_session_id
+                    """, id, event.exceptionType(), event.operator(), utc(event.entryTime()),
+                    utc(event.exitTime()), event.amountCents(), event.rateVersion());
+        }
+    }
+
+    List<ExceptionView> exceptions(String id) {
+        return jdbc.query("""
+                SELECT parking_session_id,exception_type,operator_name,entry_time,exit_time,
+                    amount_cents,rate_version,result FROM exit_exception
+                WHERE parking_session_id=? ORDER BY exception_type
+                """, (rs, row) -> new ExceptionView(rs.getString("parking_session_id"),
+                rs.getString("exception_type"), rs.getString("operator_name"),
+                fromDb(rs, "entry_time"), fromDb(rs, "exit_time"), rs.getLong("amount_cents"),
+                rs.getString("rate_version"), rs.getString("result")), id);
     }
 
     void paid(String id) {

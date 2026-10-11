@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +77,20 @@ class PassService {
                     reservationId, spaceId, plate, at(start), at(end), prepaidCents, at(now), at(now));
             return new ReservationView(reservationId, spaceId, "PENDING_PAYMENT", prepaidCents);
         });
+    }
+
+    @Scheduled(fixedDelayString = "${pass.reservation.expire-scan-ms}")
+    @Transactional
+    void expireDue() {
+        Instant now = Instant.now();
+        jdbc.update("UPDATE reservation SET status='EXPIRED',updated_at=? WHERE "
+                        + "(status='PENDING_PAYMENT' AND (created_at<=? OR start_time<=?)) "
+                        + "OR (status='CONFIRMED' AND end_time<=?)",
+                at(now), at(now.minusSeconds(60L * paymentHoldMinutes)), at(now), at(now));
+    }
+
+    ReservationView reservationView(String rawId) {
+        return view(reservation(id(rawId, "reservationId"), false));
     }
 
     @Transactional
@@ -324,9 +339,9 @@ class PassService {
     private void expireForSpace(String spaceId) {
         Instant now = Instant.now();
         jdbc.update("UPDATE reservation SET status='EXPIRED',updated_at=? WHERE space_id=? AND "
-                        + "((status='PENDING_PAYMENT' AND created_at<?) OR "
+                        + "((status='PENDING_PAYMENT' AND (created_at<? OR start_time<=?)) OR "
                         + "(status='CONFIRMED' AND end_time<=?))",
-                at(now), spaceId, at(now.minusSeconds(60L * paymentHoldMinutes)), at(now));
+                at(now), spaceId, at(now.minusSeconds(60L * paymentHoldMinutes)), at(now), at(now));
     }
 
     private Reservation reservation(String id, boolean locked) {
