@@ -20,7 +20,7 @@
 | analytics-service | 车流量和报表快照 | 18085 | parking_analytics |
 | frontend | Vue 3 + Element Plus 演示页 | Vite 输出 | 无 |
 
-服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 插入幂等演示车位。
+服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 19 个演示车位，其中 4 个充电位均有充电桩。已有数据库的人工车位和状态不会被覆盖。
 
 ## 技术版本
 

@@ -4,7 +4,7 @@
 
 | UC | 需求结果 | 权威服务/接口 | 主要表 | 可编辑模型源 | 当前验证 |
 |---|---|---|---|---|---|
-| 01 | 四类车位可查、新增、停用/恢复 | space：GET/POST /api/v1/spaces，PATCH /api/v1/spaces/{id}/service-status | parking_space | 01、02、12、15、16 | MySQL 网关查询、新增、停用、恢复通过 |
+| 01 | 四类车位可查、新增、停用/恢复 | space：GET/POST /api/v1/spaces，PATCH /api/v1/spaces/{id}/service-status | parking_space、charger | 01、02、12、15、16 | MySQL 网关查询、新增、停用、恢复通过；当前 Docker 栈核对 19 个种子位及 4 个充电桩 |
 | 02 | 唯一停车记录并占位 | access：POST /api/v1/access/entries；space：occupy | parking_session、parking_space | 03、05、06、11、15、16 | MySQL 网关入场成功；重复车牌有自动测试；真实 MySQL 8 路同车位占用仅 1 路成功 |
 | 03 | 分时阶梯计费、每日封顶 | billing：POST /internal/v1/billing/bills；access：冻结出场意图 | bill、payment、exit_intent、access_request_key | 03、07、08、11、15、16、17 | 5 条定价边界测试；MySQL 2 小时账单 1000 分；billing 断线后保留意图、重试仅一账单 |
 | 04 | 模拟支付、发票申请 | billing：payments、invoice-requests | bill、payment、invoice_request | 03、07、08、14、16、17 | MySQL 8 路并发支付仅一笔成功；支付后释放失败保持待释放、恢复不二次收费；发票申请通过 |

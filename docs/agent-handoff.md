@@ -2,6 +2,11 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-11：UC-01 演示车位扩充
+
+- `space-service/src/main/resources/data.sql` 从 7 个幂等种子车位扩充到 19 个，新增 6 普通、2 无障碍、2 充电、2 预约位，并给新增的两个充电位各建一桩。只改演示数据，不改接口、状态、表结构、费率、模型图号；图 02/15/16 的类型与关系仍一致。已有车位/占用状态不更新。`README.md` 和 `docs/ui-design.md` 说明现状与历史数据边界。
+- Java 21 `mvnw.cmd -B -ntp -pl space-service test package` 成功，5 条测试、0 失败。Docker Desktop 重建 `space-service`，真实网关 GET `/api/v1/spaces` 返回 19 条；逐个核对 12 个新 ID 在列表、2 个新充电位各返回一个充电桩。随后 `scripts/smoke-gateway.ps1` 退出 0，12 项 PASS，日志在 `target/local-runtime/smoke-seeds-20261011.log`。本次在上海时间约 22:50 的 2 小时演示停车跨日夜时段，账单停车 800 分、充电 300 分、应付 1100 分；与前一次 1000/300/1300 分不同来自实际请求时间，不是费率变更。VM 尚未同步本次数据变更。
+
 ## 2026-10-11：UC-08 异常快照、UC-05 预约到期与 Nacos 默认启动
 
 - **UC-08，图 08/15/16**：`access-service` 新增自有表 `exit_exception` 和 `GET /api/v1/access/{sessionId}/exceptions`。出账成功后，同一本地事务保存账单 ID 与异常快照：丢卡保留人工处理人，超长停车以 billing 返回的 `LONG_STAY` 明细判定并记 `SYSTEM`；同一会话可有两条，均保留原入出场时刻、整数分金额和费率版本。业务金额仍由 billing 计算，access 不复制费率。前端账单页显示处理记录。变更文件：`access-service` 的 `ApiModels`、`AccessService`、`AccessRepository`、`AccessController`、`schema.sql` 与测试；前端 `useParkingWorkspace.js`、`BillingPage.vue`、`workflows.css`；`docs/api-contract.md`、模型 08/15/16。停车状态、既有支付协议与其他服务数据库均未改。
