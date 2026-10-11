@@ -83,6 +83,7 @@ Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 
 
 ## 验证与演示
 
+- GitHub Actions 的 [`Verify`](.github/workflows/verify.yml) 在推送、PR 和手动触发时运行 Java 21 后端测试、Node 22 前端测试与构建；它使用 H2，不代替下面的真实 MySQL 与 Docker 联调。远端运行结果以 GitHub Actions 页面为准。
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
 - 18 条后端测试均通过（原有 16 条 + Redis 缓存 2 条）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。

@@ -2,6 +2,12 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-11：提交验证流程
+
+- 新增 `.github/workflows/verify.yml`：推送、PR 或手动触发时，用 Java 21 跑六模块 Maven 测试，用 Node 22 跑前端 API 测试与 Vite 构建。只赋予仓库内容读取权限，不注入业务密码；不启动 MySQL、Redis、Nacos 或 Docker。没有业务接口、状态、表及模型变化；对应 UC-01～UC-10 的回归入口，不能把它当成真实跨服务联调证据。
+- 本机执行 `mvnw.cmd -B -ntp test`：七模块 Reactor `BUILD SUCCESS`，18 条后端测试；`npm test --prefix frontend`：3 条通过；`npm run build --prefix frontend`：构建成功，主 JS 390.53 kB。首次运行因当前终端 `JAVA_HOME` 指向不存在的 JDK、沙箱阻止 esbuild 启动而未开始/未构建；改用已安装的 Corretto 21 路径，并在获准的环境重跑通过。GitHub Actions **尚未远端运行验证**，提交和推送后须查看该 workflow 的首次结果。
+- 本次没有使用用户提供的 DeepSeek 密钥。UC-02 仍为契约规定的人工输入/本地模拟车牌识别，不能在报告中写成真实图像识别；密钥不得进入仓库或测试日志。
+
 ## 2026-10-10：Windows Docker、网关首页与可读性整理
 
 - **范围**：保持 UC-01～UC-10 的业务语义、HTTP 业务接口、状态、表和金额单位不变。网关默认/Nacos 两份路由配置增加可配置的 `FRONTEND_SERVICE_URI` 页面资源路由，Docker 中指向 Nginx；浏览器访问 `:18080/` 不再进入 Whitelabel 404。`analytics-service` 将 `TrafficController.java` 中原有控制器、Feign 客户端、统计服务、DTO/异常和异常处理拆为五个同包文件；类名、方法和调用顺序未变。前端由单个 App 大文件拆成应用外壳、七个页面、工作台状态和 API 客户端；样式按四份职责文件整理，增加短暂入场/悬停动效并尊重 `prefers-reduced-motion`。文件边界见 `frontend/README.md`；部署图 13 已同步网关至前端的静态路由并重渲染。
