@@ -1,9 +1,10 @@
 <script setup>
-import TrafficChart from '../components/TrafficChart.vue'
+import { defineAsyncComponent } from 'vue'
+const TrafficChart = defineAsyncComponent(() => import('../components/TrafficChart.vue'))
 
 // This page presents the shared workspace; business actions stay in the composable.
 const props = defineProps({ workspace: { type: Object, required: true } })
-const { label, busy, report, analytics, dateTime, traffic } = props.workspace
+const { busy, report, analytics, dateTime, traffic } = props.workspace
 </script>
 
 <template>
@@ -17,14 +18,15 @@ const { label, busy, report, analytics, dateTime, traffic } = props.workspace
     /></el-select>
     <el-button type="primary" :loading="busy" @click="traffic">生成车流报表</el-button>
   </div>
-  <TrafficChart :report="report" />
-  <p v-if="report" class="muted">
-    报表编号 {{ report.reportId }} · 范围 {{ dateTime(report.from) }} 至
-    {{ dateTime(report.to) }}
-  </p>
-  <el-table v-if="report" :data="report.buckets" stripe max-height="300">
-    <el-table-column label="时段开始（上海时间）"
-      ><template #default="{ row }">{{ dateTime(row.start) }}</template></el-table-column
-    ><el-table-column prop="count" label="入场数" />
-  </el-table>
+  <section v-if="report" class="analytics-result" aria-label="车流报表结果">
+    <div class="analytics-result-heading"><div><span class="section-kicker">TRAFFIC INTELLIGENCE</span><h3>车流时段分析</h3></div><span class="analytics-report-id">报表 #{{ report.reportId }}</span></div>
+    <TrafficChart :report="report" />
+    <p class="muted">统计范围 {{ dateTime(report.from) }} 至 {{ dateTime(report.to) }}</p>
+    <h3 class="analytics-table-title">时段明细</h3>
+    <el-table :data="report.buckets" stripe max-height="300">
+      <el-table-column label="时段开始（上海时间）"><template #default="{ row }">{{ dateTime(row.start) }}</template></el-table-column>
+      <el-table-column prop="count" label="入场数" />
+    </el-table>
+  </section>
+  <p v-else class="empty-state">选择时间范围，生成可复核的车流报表。</p>
 </template>

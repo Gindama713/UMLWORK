@@ -1,5 +1,11 @@
 # 界面设计与验收记录（【AI-辅助】）
 
+## 2026-10-12：ECharts 运营可视化
+
+- 参考 Apache ECharts 官方[示例集](https://echarts.apache.org/examples/en/index.html)中的渐变面积图、堆叠圆角条形图和仪表盘，按[按需引入](https://echarts.apache.org/handbook/zh/basics/import/)只安装 `echarts@6.1.0`。最终采用可切换的车流渐变趋势/柱形图、四类车位状态堆叠条、CSS 占用率环；长时间车流有缩放条。图表独立懒加载并用 SVG 渲染。没有真实坐标或分楼层历史快照，因此不做 3D 停车场或热力图。
+- 数据只来自既有 `/api/v1/analytics/traffic-preview`、保存报表和 `/api/v1/spaces`。无入场显示零，不生成虚构峰值；资源图表示当前 `AVAILABLE/OCCUPIED/OUT_OF_SERVICE`，不冒充预约余量。图形有中文文本摘要、可切换按钮和原有报表明细；系统要求减少动效时关闭 ECharts 动画。
+- `npm test` 4/4；`npm run build` 成功。构建输出：主 JS 393.75 kB（gzip 136.51 kB），图表公共懒加载包 562.32 kB（gzip 192.92 kB），Vite 对后者提示超过 500 kB；已保留这项体积边界。Windows Docker 重建前端后，网关 `:18080/` 在浏览器显示 5/5 服务、19 个真实车位、0 辆近 24 小时入场；总览车位图、趋势/柱形切换、运营报表生成与明细显示均可见，浏览器 error/warn 为空。当前流量为 0，未用假数据制造曲线；未量测 FPS，也未做本轮手机视口实测。
+
 ## 2026-10-11：车位示意数据
 
 - `space-service/data.sql` 的首次建库种子从 7 位扩充到 19 位，覆盖普通、无障碍、充电和预约四类；四个充电位均有对应充电桩。幂等插入不重置既有占用状态。当前 Windows Docker 网关 GET `/api/v1/spaces` 返回 19 位，新增 12 位和 2 个充电桩均经 API 核对；车位图继续只渲染实际 API 数据。

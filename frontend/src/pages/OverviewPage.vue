@@ -1,13 +1,14 @@
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
 import SpaceMap from '../components/SpaceMap.vue'
-import TrafficChart from '../components/TrafficChart.vue'
+const TrafficChart = defineAsyncComponent(() => import('../components/TrafficChart.vue'))
+const ResourceStatusChart = defineAsyncComponent(() => import('../components/ResourceStatusChart.vue'))
 
 // This page presents the shared workspace; business actions stay in the composable.
 const props = defineProps({ workspace: { type: Object, required: true } })
 const {
   page,
-  types,
   busy,
   spaces,
   chargers,
@@ -16,11 +17,8 @@ const {
   resourcesReady,
   metrics,
   occupancy,
-  typeIcon,
-  entry,
   search,
   adminSpace,
-  analytics,
   findFromOverview,
 } = props.workspace
 </script>
@@ -38,9 +36,9 @@ const {
         }}
       </p>
     </article>
-    <article class="metric-card">
+    <article class="metric-card occupancy-card">
       <div class="metric-label"><span>在场占用率</span><AppIcon name="car" /></div>
-      <strong>{{ resourcesReady ? occupancy : '—' }}<small>%</small></strong>
+      <div class="occupancy-readout"><strong>{{ resourcesReady ? occupancy : '—' }}<small>%</small></strong><span class="occupancy-ring" :style="{ '--occupancy': resourcesReady ? `${occupancy}%` : '0%' }" aria-hidden="true"></span></div>
       <p>
         {{
           resourcesReady ? `${metrics.occupied} 个车位正在使用 / 全部物理车位` : '等待资源服务响应'
@@ -137,23 +135,10 @@ const {
           <span class="section-kicker">03 / AVAILABILITY</span>
           <h2>分类余量</h2>
         </div>
-        <span class="muted">可用 / 总量</span>
+        <span class="muted">当前车位状态</span>
       </div>
-      <div class="resource-lines">
-        <div v-for="(title, type) in types" :key="type">
-          <span><AppIcon :name="typeIcon(type)" />{{ title }}</span
-          ><strong
-            >{{
-              resourcesReady
-                ? spaces.filter((s) => s.type === type && s.status === 'AVAILABLE').length
-                : '—'
-            }}<small>
-              /
-              {{ resourcesReady ? spaces.filter((s) => s.type === type).length : '—' }}</small
-            ></strong
-          >
-        </div>
-      </div>
+      <ResourceStatusChart v-if="resourcesReady" :spaces="spaces" />
+      <p v-else class="empty-state">资源暂未加载</p>
       <p class="map-caption">未来预约保留由预约服务按时间窗核验。</p>
     </section>
   </div>

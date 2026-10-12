@@ -18,13 +18,13 @@
 | billing-service | 分时计费、账单、模拟支付、发票 | 18083 | parking_billing |
 | pass-service | 预约预付、月卡与扣费 | 18084 | parking_pass |
 | analytics-service | 车流量和报表快照 | 18085 | parking_analytics |
-| frontend | Vue 3 + Element Plus 演示页 | Vite 输出 | 无 |
+| frontend | Vue 3 + Element Plus + ECharts 演示页 | Vite 输出 | 无 |
 
 服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 19 个演示车位，其中 4 个充电位均有充电桩。已有数据库的人工车位和状态不会被覆盖。
 
 ## 技术版本
 
-Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2；本机 Redis 3.2.100 仅用于已保存报表缓存。Maven 版本由项目包装器确定；具体依赖以根 pom.xml 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)；本机已用 Nacos 3.1.1 做服务发现联调，证据和边界见 [交接记录](docs/agent-handoff.md)。
+Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.1.0.0、MySQL 8.x、Vue 3、Vite 6、Element Plus 2、ECharts 6.1.0；本机 Redis 3.2.100 仅用于已保存报表缓存。Maven 版本由项目包装器确定；具体后端依赖以根 pom.xml 为准，前端依赖以 frontend/package.json 为准。版本组合参考 [Spring Cloud Alibaba 官方对应表](https://sca.aliyun.com/en/docs/2025.x/overview/version-explain/)；本机已用 Nacos 3.1.1 做服务发现联调，证据和边界见 [交接记录](docs/agent-handoff.md)。
 
 ## 本地 MySQL 启动
 

@@ -1,6 +1,12 @@
-# Agent 交接记录（2026-10-11，当前可接手）
+# Agent 交接记录（2026-10-12，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-12：UC-01/UC-10 运营图表改版
+
+- **改动**：`frontend/package.json` 与 lock 增加 ECharts 6.1.0；新增 `EChartView.vue`、`ResourceStatusChart.vue` 和车位状态分组检查，替换 `TrafficChart.vue` 的旧手写柱条；总览增加实际占用率环与当前资源堆叠图，运营报表保留原明细表并强化图形布局。`frontend/README.md`、`README.md`、`docs/ui-design.md` 同步更新。没有改 API、业务状态、数据库表、费率或 UML 模型；图 02/15/16 的资源含义不变。前端只读取 UC-01/UC-10 已有接口，长区间可缩放，零车流保持零显示。未推送。
+- **验收**：`cd frontend && npm test` 为 4/4，`npm run build` 成功；主 JS 393.75 kB，ECharts 懒加载包 562.32 kB（gzip 192.92 kB，Vite 体积警告）。`docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build --no-deps frontend` 成功重建。浏览器在 `http://127.0.0.1:18080/` 看到服务 5/5、19 个车位、当前可用 19/占用 0/停用 0；趋势与柱形按钮切换生效，报表页生成了 24 小时、总量 0 的真实快照并显示逐小时明细。最终页面查到 2 个 SVG 图表，读屏摘要分别与真实 0/19 数据一致，1280px 视口下文档宽 1265px，console error/warn 为 0。此次没有新建车辆，因此没有非零车流的浏览器实测；没有做手机视口复测。课程本人截图仍需负责人采集。
+- **接手**：前端改动后运行 `npm ci && npm test && npm run build`；Compose 使用预构建 `frontend/dist`，必须再单独重建 `frontend` 容器。对应 UI 依据与数据边界见 `docs/ui-design.md`。本轮未改后端，故未重跑 Maven。
 
 ## 2026-10-11：UC-01 演示车位扩充
 

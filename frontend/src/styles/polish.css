@@ -75,10 +75,19 @@ body {
   background: linear-gradient(140deg, #f0f7df, #e9f2d2);
 }
 
-.metric-label,
-.resource-lines > div {
-  font-size: 12px;
-}
+.metric-label { font-size: 12px; }
+
+.occupancy-readout { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.occupancy-readout strong { font-family: Bahnschrift, 'Segoe UI', sans-serif; font-size: clamp(38px, 3vw, 48px); font-weight: 500; font-variant-numeric: tabular-nums; }
+.occupancy-readout small { font-family: 'Microsoft YaHei', sans-serif; color: #8c97a8; font-size: 11px; font-weight: 400; margin-left: 6px; }
+.occupancy-ring { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 50%; background: conic-gradient(#a5c658 var(--occupancy), #e9edf2 0); position: relative; }
+.occupancy-ring::after { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: #fff; }
+
+.analytics-result { margin-top: 28px; padding: 25px; border: 1px solid #e6edf3; border-radius: 15px; background: linear-gradient(150deg, #fbfdf9, #fff 40%); }
+.analytics-result-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.analytics-result-heading h3 { margin: 0 0 18px; font-size: 18px; }
+.analytics-report-id { color: #718060; background: #eef5df; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
+.analytics-table-title { margin-top: 30px; }
 
 .metric-card > strong {
   font-size: clamp(38px, 3vw, 48px);
@@ -561,9 +570,8 @@ body {
     flex-direction: column;
     gap: 5px;
   }
-  .traffic-column small {
-    font-size: 7px;
-  }
+  .analytics-result { padding: 16px; }
+  .occupancy-ring { flex-basis: 36px; width: 36px; height: 36px; }
 }
 
 @media (max-width: 640px) {
