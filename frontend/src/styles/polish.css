@@ -164,15 +164,6 @@ body {
     box-shadow 0.25s ease;
 }
 
-.view-3d .parking-bay {
-  transform: rotateX(16deg) translateY(-3px);
-}
-
-.view-3d .parking-bay:hover,
-.view-3d .parking-bay:focus-visible {
-  transform: rotateX(16deg) translateY(-8px);
-}
-
 .business-pages .el-tab-pane {
   animation: page-enter 0.36s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }

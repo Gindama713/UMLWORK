@@ -5,7 +5,6 @@ const props = defineProps({ spaces: { type: Array, required: true }, highlight: 
 const emit = defineEmits(['select'])
 const floor = ref('*')
 const selectedId = ref('')
-const perspective = ref(true)
 const floors = computed(() => [...new Set(props.spaces.map(space => space.floor))])
 const zones = computed(() => {
   const visible = props.spaces.filter(s => floor.value === '*' || s.floor === floor.value)
@@ -33,20 +32,16 @@ function select(space) { selectedId.value = space.spaceId; emit('select', space)
         <button :class="{ selected: floor === '*' }" :aria-pressed="floor === '*'" @click="floor = '*'">全场</button>
         <button v-for="item in floors" :key="item" :class="{ selected: item === floor }" :aria-pressed="item === floor" @click="floor = item">{{ item }}</button>
       </div>
-      <div class="map-view-switch" role="group" aria-label="车位图视角">
-        <button :class="{ selected: perspective }" :aria-pressed="perspective" @click="perspective = true">立体</button>
-        <button :class="{ selected: !perspective }" :aria-pressed="!perspective" @click="perspective = false">平面</button>
-      </div>
       <div class="map-legend"><span class="available">可用</span><span class="occupied">占用</span><span class="offline">停用</span></div>
     </div>
-    <div class="garage-canvas" :class="{ 'view-3d': perspective }">
+    <div class="garage-canvas">
       <div class="garage-sign"><AppIcon name="plane" /><span>AIRPORT PARKING</span><span class="sign-arrow">↗</span></div>
       <p v-if="!spaces.length" class="empty-state">暂无车位，请在资源管理中添加。</p>
       <div class="garage-zones">
         <section v-for="zone in zones" :key="zone.name" class="parking-zone">
           <div class="zone-heading"><strong>{{ zone.name }}</strong><span>{{ zone.spaces.filter(s => s.status === 'AVAILABLE').length }} 可用</span></div>
           <div class="bay-grid">
-            <button v-for="space in zone.spaces" :key="space.spaceId" class="parking-bay" :class="[space.status.toLowerCase(), { highlighted: space.spaceId === selectedId || space.spaceId === highlight }]"
+            <button v-for="space in zone.spaces" :key="space.spaceId" class="parking-bay" :class="[space.status.toLowerCase(), { 'is-selected': space.spaceId === selectedId }]"
               :aria-pressed="space.spaceId === selectedId" :aria-label="`${space.floor} ${space.zone}区 ${space.number} ${types[space.type]} ${statuses[space.status]}`" @click="select(space)">
               <svg v-if="space.status === 'OCCUPIED'" class="car-plan" viewBox="0 0 36 68" aria-hidden="true"><rect x="5" y="3" width="26" height="62" rx="8" fill="currentColor"/><path d="M9 17h18l-2 10H11z M11 47h14l2 8H9z" fill="#dce6f0"/><path d="M7 30v14 M29 30v14" stroke="#dce6f0" stroke-width="2"/><rect x="1" y="16" width="4" height="7" rx="1" fill="currentColor"/><rect x="31" y="16" width="4" height="7" rx="1" fill="currentColor"/></svg>
               <AppIcon v-else :name="space.type === 'CHARGING' ? 'bolt' : space.type === 'ACCESSIBLE' ? 'accessible' : space.type === 'RESERVATION' ? 'ticket' : 'parking'" />
@@ -57,7 +52,7 @@ function select(space) { selectedId.value = space.spaceId; emit('select', space)
           <div class="zone-driveway" aria-hidden="true"><span></span><AppIcon name="arrow" /><span></span></div>
         </section>
       </div>
-      <div class="garage-caption"><AppIcon name="layers" /><span>楼层区域示意 · 点击车位查看详情</span></div>
+      <div class="garage-caption"><AppIcon name="layers" /><span>楼层区域示意 · 点选车位查看立体状态与详情</span></div>
     </div>
     <div class="space-inspector" v-if="selected"><div class="inspector-pin"><AppIcon name="pin" /></div><div><strong>{{ selected.number }}</strong><span>{{ selected.floor }} · {{ selected.zone }}区 · {{ types[selected.type] }}车位</span></div><span class="space-state" :class="selected.status.toLowerCase()">{{ statuses[selected.status] }}</span></div>
     <p class="map-caption">由实际车位资料生成；布局与道路仅为示意，不代表建筑平面或导航路线。</p>

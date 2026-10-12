@@ -2,6 +2,12 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-12：UC-01/05/06/09/10 页面与演示数据
+
+- **改动**：`SpaceMap.vue` 与可视化样式移除全局视角切换和蓝色选中框，点击或外部定位时只有一个车位凸起；`PassesPage.vue`、`ChargingPage.vue` 与 `workflows.css` 改成预约/月卡、选桩/充电步骤卡片。`space-service/data.sql` 在 B3 追加 12 个幂等种子位（含 2 个停用位）和 2 个充电桩，现为 31 位、6 桩。新增 `scripts/seed-demo-traffic.ps1`，通过既有网关接口生成可核对的停车与车流演示记录。`README.md`、`frontend/README.md`、`docs/ui-design.md`、`docs/traceability.md` 同步说明。没有新增依赖、接口、状态枚举或表；金额规则和模型图 01/02/04/09/10/12/15/16 不变。
+- **验证**：`cd frontend; npm test` 4/4，最终 `npm run build` 成功，主 JS 398.97 kB、CSS 372.90 kB，ECharts 异步包 562.32 kB（原有体积警告）；Java 21 `mvnw.cmd -B -ntp -pl space-service test package` 5/5 且构建成功。Windows Docker 用 `docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build --no-deps space-service frontend` 重建，随后单独重建 `frontend` 部署视觉修正。经网关 GET `/api/v1/spaces` 得 31 位；运行 `pwsh -NoProfile -File scripts/seed-demo-traffic.ps1 -IncludeActive` 退出 0，输出 6 条 `CLOSED`、2 条 `PARKED`，车流预览 `last24h=8; buckets=25`。浏览器 `:18080/` 显示可用 27/占用 2/停用 2、充电桩 6、近 24 小时入场 8；资源页点 A-003 时可见区域只有一个 `is-selected`，其余 10 位平面，全局视角切换控件数 0；充电页修复了 `spaces` ref 被直接当数组导致的空白，6 桩显示并可点选 C-001。390px 宽度下预约与充电页文档宽均为 375px，无横向溢出。
+- **接手与边界**：已完成记录的再次运行会继续追加，`-IncludeActive` 只跳过已在场的固定演示车牌；演示数据是通过正式 API 写入真实 MySQL，不是前端假数据。课程正式截图仍需负责人本人采集。本轮未重跑全部 Maven 模块、未测 FPS，未部署到 Ubuntu VM；旧日期章节的 19 位/4 桩是当时的历史实测，不代表现状。未推送远端。
+
 ## 2026-10-12：UC-01/UC-10 运营图表改版
 
 - **改动**：`frontend/package.json` 与 lock 增加 ECharts 6.1.0；新增 `EChartView.vue`、`ResourceStatusChart.vue` 和车位状态分组检查，替换 `TrafficChart.vue` 的旧手写柱条；总览增加实际占用率环与当前资源堆叠图，运营报表保留原明细表并强化图形布局。`frontend/README.md`、`README.md`、`docs/ui-design.md` 同步更新。没有改 API、业务状态、数据库表、费率或 UML 模型；图 02/15/16 的资源含义不变。前端只读取 UC-01/UC-10 已有接口，长区间可缩放，零车流保持零显示。未推送。

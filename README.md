@@ -6,7 +6,7 @@
 
 先读 [项目统一契约](AGENTS.md)、[业务规则](docs/decisions.md)、[API v1](docs/api-contract.md) 和 [用例规约](docs/use-cases.md)。
 
-下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。[前端结构](frontend/README.md)说明页面、共享状态、API 与样式的文件边界；[界面设计记录](docs/ui-design.md) 包含机场导视配色、真实车位立体/平面示意、车辆位置卡、票据式账单、结算进度与动效取舍。快捷入口用于导航，不是权限控制。
+下一位 agent 从 [交接记录](docs/agent-handoff.md) 开始。[前端结构](frontend/README.md)说明页面、共享状态、API 与样式的文件边界；[界面设计记录](docs/ui-design.md) 包含机场导视配色、点选车位立体示意、车辆位置卡、票据式账单、结算进度与动效取舍。快捷入口用于导航，不是权限控制。
 
 ## 模块与所有权
 
@@ -20,7 +20,9 @@
 | analytics-service | 车流量和报表快照 | 18085 | parking_analytics |
 | frontend | Vue 3 + Element Plus + ECharts 演示页 | Vite 输出 | 无 |
 
-服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 19 个演示车位，其中 4 个充电位均有充电桩。已有数据库的人工车位和状态不会被覆盖。
+服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 31 个演示车位，其中 6 个充电位均有充电桩，2 个普通位为停用示例。已有数据库的人工车位和状态不会被覆盖。
+
+如需让运营图表展示非零车流，在网关和五个业务服务启动后运行 `pwsh -NoProfile -File scripts/seed-demo-traffic.ps1 -IncludeActive`。脚本通过正式 API 追加 6 条已完成停车和最多 2 条在场停车，最后核对近 24 小时车流；每次运行都会新增已完成记录，请只在演示环境按需执行。它不直接写其他服务数据库，也不修改费率或支付规则。
 
 ## 技术版本
 

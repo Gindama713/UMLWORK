@@ -34,31 +34,6 @@
   box-shadow: 0 1px 5px #1d325712;
 }
 
-.map-view-switch {
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  margin-left: auto;
-  border: 1px solid #d9e2ed;
-  background: #eaf0f7;
-  border-radius: 7px;
-}
-
-.map-view-switch button {
-  min-height: 30px;
-  padding: 5px 11px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: #687b93;
-  font-size: 11px;
-}
-
-.map-view-switch button.selected {
-  background: #263a55;
-  color: #fff;
-}
-
 .map-legend {
   display: flex;
   gap: 12px;
@@ -96,9 +71,7 @@
   overflow: hidden;
 }
 
-.garage-canvas.view-3d {
-  background: radial-gradient(circle at 20% 0%, #fff 0, #f0f4f9 45%, #e4ebf2 100%);
-}
+.garage-canvas { background: radial-gradient(circle at 20% 0%, #fff 0, #f0f4f9 45%, #e4ebf2 100%); }
 
 .garage-sign {
   display: flex;
@@ -238,12 +211,6 @@
   background: #a8b1be;
 }
 
-.parking-bay.highlighted {
-  outline: 2px solid #477df2;
-  outline-offset: 2px;
-  background: #e4ebfb;
-}
-
 .car-plan {
   width: 28px;
   height: 51px;
@@ -260,39 +227,34 @@
     background-color 0.2s ease;
 }
 
-.view-3d .parking-zone {
+.parking-zone {
   perspective: 700px;
 }
 
-.view-3d .parking-bay {
+.parking-bay.is-selected {
   --bay-edge: #adc478;
-  transform: rotateX(16deg) translateY(-3px);
+  transform: rotateX(16deg) translateY(-5px);
   border-radius: 8px 8px 4px 4px;
   box-shadow:
     0 9px 0 var(--bay-edge),
     0 15px 18px #22344f2b;
+  z-index: 1;
 }
 
-.view-3d .parking-bay.occupied {
+.parking-bay.is-selected.occupied {
   --bay-edge: #7185a3;
 }
 
-.view-3d .parking-bay.out_of_service {
+.parking-bay.is-selected.out_of_service {
   --bay-edge: #b3bdc9;
 }
 
-.view-3d .parking-bay:hover,
-.view-3d .parking-bay:focus-visible {
+.parking-bay.is-selected:hover,
+.parking-bay.is-selected:focus-visible {
   transform: rotateX(16deg) translateY(-9px);
 }
 
-.view-3d .parking-bay.highlighted {
-  box-shadow:
-    0 9px 0 #6b8ed3,
-    0 16px 23px #2f58a95c;
-}
-
-.view-3d .car-plan {
+.parking-bay.is-selected .car-plan {
   filter: drop-shadow(0 4px 2px #21334d55);
 }
 
