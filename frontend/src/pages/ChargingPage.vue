@@ -2,7 +2,7 @@
 import AppIcon from '../components/AppIcon.vue'
 
 const props = defineProps({ workspace: { type: Object, required: true } })
-const { label, busy, spaces, chargers, charging, charge, money, dateTime, startCharge, finishCharge } = props.workspace
+const { label, busy, spaces, chargers, charging, charge, money, dateTime, startCharge, recoverCharge, finishCharge } = props.workspace
 const spaceFor = charger => spaces.value.find(space => space.spaceId === charger.spaceId)
 </script>
 
@@ -28,11 +28,12 @@ const spaceFor = charger => spaces.value.find(space => space.spaceId === charger
   <div class="service-columns charge-workflow">
     <section class="service-panel">
       <div class="service-panel-heading"><span class="service-panel-icon"><AppIcon name="car" /></span><div><span class="section-kicker">02 / START</span><h3>开始充电</h3></div></div>
-      <p class="service-panel-note">停车记录必须对应所选充电位；服务端会再次核验。</p>
+      <p class="service-panel-note">停车记录必须对应所选充电位；刷新页面后可输入停车记录 ID，恢复进行中的充电。</p>
       <div class="service-form">
         <label>停车记录 ID<el-input v-model="charge.parkingSessionId" aria-label="充电停车记录 ID" placeholder="入场登记后自动带入" /></label>
         <label>开始时间（可留空）<input v-model="charge.startTime" type="datetime-local" step="0.001" /></label>
       </div>
+      <el-button :loading="busy" :disabled="!charge.parkingSessionId" @click="recoverCharge">恢复进行中的充电</el-button>
       <el-button class="service-primary" type="primary" :loading="busy" :disabled="!charge.chargerId || !charge.parkingSessionId || charging?.status === 'ACTIVE'" @click="startCharge">开始充电</el-button>
     </section>
     <section class="service-panel">

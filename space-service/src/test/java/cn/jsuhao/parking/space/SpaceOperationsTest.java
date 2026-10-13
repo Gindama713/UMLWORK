@@ -44,6 +44,8 @@ class SpaceOperationsTest {
         assertThrows(SpaceException.class, () -> operations.occupy(spaceId, competingSessionId, "test-occupy"));
 
         var charging = operations.startCharging(chargerId, sessionId, "2026-10-01T08:00:00+08:00", "start-charge");
+        assertEquals(charging, operations.activeCharging(sessionId).getFirst());
+        assertEquals(charging, new ChargingController(operations).active(sessionId).data().getFirst());
         assertThrows(SpaceException.class, () -> operations.settle(spaceId, sessionId, "early-settlement"));
         assertThrows(SpaceException.class, () -> operations.release(spaceId, sessionId, "release-too-early"));
         assertEquals(charging.chargingSessionId(), operations.startCharging(
@@ -54,6 +56,7 @@ class SpaceOperationsTest {
         var finished = operations.finishCharging(charging.chargingSessionId(),
                 "2026-10-01T09:00:00.1234567+08:00", new BigDecimal("2.555"), "finish-charge");
         assertEquals("FINISHED", finished.status());
+        assertEquals(0, operations.activeCharging(sessionId).size());
         assertEquals(383L, finished.chargingCents());
         assertEquals(383L, operations.chargingFees(sessionId).chargingCents());
         assertEquals(383L, operations.settle(spaceId, sessionId, "settlement").chargingCents());

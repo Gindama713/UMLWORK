@@ -128,6 +128,7 @@ package "space-service" {
   }
   class ChargingController {
     -operations: SpaceOperations
+    +active(parkingSessionId: String): ApiResponse<List<ChargingView>>
     +start(key: String, request: StartRequest): ApiResponse<ChargingView>
     +finish(id: String, key: String, request: FinishRequest): ApiResponse<ChargingView>
   }
@@ -141,6 +142,7 @@ package "space-service" {
     +settle(spaceId: String, parkingSessionId: String, key: String): ChargingFeeView
     +startCharging(chargerId: String, parkingSessionId: String, startTime: String, key: String): ChargingView
     +finishCharging(chargingId: String, endTime: String, energyKwh: BigDecimal, key: String): ChargingView
+    +activeCharging(parkingSessionId: String): List<ChargingView>
   }
   class Idempotency {
     -jdbc: JdbcTemplate

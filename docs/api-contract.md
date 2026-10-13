@@ -71,6 +71,7 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 |---|---|---|---|
 | GET /api/v1/spaces/chargers?spaceId=... | spaceId 可选 | [{chargerId,spaceId,status}] | 给演示页选择充电桩 |
 | POST /api/v1/spaces/charging-sessions | {chargerId,parkingSessionId,startTime} | {chargingSessionId,status} | 一个充电桩只能有一条 ACTIVE 会话；停车记录已冻结结算则 409 STATE_CONFLICT |
+| GET /api/v1/spaces/charging-sessions/active?parkingSessionId=... | 必填停车记录 ID | [ChargingView] | 返回该停车记录仍在进行的充电会话；无活动会话返回空数组，供刷新页面后恢复结束操作；只读，不改变计费状态 |
 | POST /api/v1/spaces/charging-sessions/{id}/finish | {endTime,energyKwh} | {chargingSessionId,status,energyKwh,chargingCents,rateVersion} | 金额只由服务配置计算 |
 | GET /internal/v1/spaces/charging-fees?parkingSessionId=... | 必填 parkingSessionId | {parkingSessionId,chargingCents} | 只读查看已结束费用，不保证结算一致性；access 出账必须调用 settlement 冻结接口 |
 | GET /api/v1/analytics/traffic?from=...&to=...&granularity=HOUR | 带偏移量时间，粒度 HOUR/DAY | {reportId,from,to,granularity,buckets:[{start,count}],peakBucket,totalEntries} | 入场时刻计数，左闭右开；生成的报表快照存 analytics 自有库 |

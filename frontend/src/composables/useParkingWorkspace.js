@@ -358,6 +358,15 @@ export function useParkingWorkspace() {
       ? { parkingSessionId: data.parkingSessionId, status: data.status }
       : null
   }
+  async function loadActiveCharge() {
+    const sessions = await api(`/api/v1/spaces/charging-sessions/active?parkingSessionId=${encodeURIComponent(charge.parkingSessionId)}`)
+    charging.value = sessions[0] || null
+    if (charging.value) charge.chargerId = charging.value.chargerId
+    return sessions
+  }
+  async function recoverCharge() {
+    return action(loadActiveCharge)
+  }
   async function startCharge() {
     await action(async () => {
       if (!charge.startTime) charge.startTime = localInput(new Date())
@@ -502,6 +511,7 @@ export function useParkingWorkspace() {
     locate,
     findFromOverview,
     startCharge,
+    recoverCharge,
     finishCharge,
     requestExit,
     completeExit,

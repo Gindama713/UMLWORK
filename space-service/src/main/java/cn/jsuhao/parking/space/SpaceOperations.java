@@ -217,6 +217,13 @@ public class SpaceOperations {
                 });
     }
 
+    public List<ChargingView> activeCharging(String parkingSessionId) {
+        validId(parkingSessionId);
+        return jdbc.queryForList("SELECT id FROM charging_session WHERE parking_session_id=? AND status='ACTIVE'",
+                String.class, parkingSessionId).stream().map(this::chargingById)
+                .filter(session -> "ACTIVE".equals(session.status())).toList();
+    }
+
     public ChargingFeeView chargingFees(String parkingSessionId) {
         validId(parkingSessionId);
         Long sum = jdbc.queryForObject("SELECT COALESCE(SUM(charging_cents),0) FROM charging_session "

@@ -1,6 +1,13 @@
-# Agent 交接记录（2026-10-12，当前可接手）
+# Agent 交接记录（2026-10-13，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-13：UC-09 活动充电会话恢复
+
+- **发现与修复**：原前端只在内存保留充电会话 ID，页面刷新后无法结束仍为 ACTIVE 的会话，出场冻结会被 space-service 拒绝。space-service 新增只读 `GET /api/v1/spaces/charging-sessions/active?parkingSessionId=...`，从自有 MySQL 查询活动会话，空结果返回 `[]`；充电页可输入停车记录 ID 并点击“恢复进行中的充电”，随后使用原会话 ID 结束。寻车流程不依赖此查询，space-service 暂不可用时仍可单独寻车。接口先写入 `docs/api-contract.md`，设计类图 15 源及 `models/rendered/15-design-classes_002.png` 已同步。未新增依赖、表、状态或费率规则。
+- **本机验证**：Java 21 `./mvnw.cmd -q test` 退出 0，Surefire XML 合计 23 条；`space-service` 现有充电测试增加了活动查询在开始后返回原会话、结束后返回空数组及控制器响应断言。`frontend` 的 `npm test -- --run` 为 4/4，`npm run build` 退出 0；PlantUML 1.2024.3 的图 15 `-checkonly`、PNG 渲染退出 0，已打开 space 设计类图确认文字与连线可读。`git diff --check` 退出 0。
+- **未验证**：本轮 `docker compose ps` 无法连接 Docker Desktop Linux Engine（命名管道不存在），因此新接口尚未用真实 MySQL/网关/浏览器复测。容器恢复后应重新构建 `space-service` 与 `frontend`，创建充电入场并开始充电，刷新页面，按停车记录 ID 恢复并结束充电，再验证出场结算。课程正式截图仍需负责人本人采集。原有三个未跟踪提示词文件未改；本轮不推送远端。
+- **后续审查点**：`AccessService.enter` 的同一请求键并发重试目前只有顺序幂等测试；`AccessRepository.chooseSpace` 对 `ENTERING` 行可重复覆盖所选车位。真实 MySQL 测试尚未覆盖“两请求同键同时选择不同候选车位”的窗口，暂不声称该并发路径安全，也不凭静态推断改动入场状态机。下一轮应先做可复现故障注入，再按结果修复。
 
 ## 2026-10-12：UC-01/05/06/09/10 页面与演示数据
 

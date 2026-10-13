@@ -1,6 +1,7 @@
 package cn.jsuhao.parking.space;
 
 import java.math.BigDecimal;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +19,11 @@ public class ChargingController {
 
     public record StartRequest(String chargerId, String parkingSessionId, String startTime) {}
     public record FinishRequest(String endTime, BigDecimal energyKwh) {}
+
+    @GetMapping("/api/v1/spaces/charging-sessions/active")
+    public ApiResponse<List<SpaceOperations.ChargingView>> active(@RequestParam String parkingSessionId) {
+        return ApiResponse.ok(operations.activeCharging(parkingSessionId));
+    }
 
     @PostMapping("/api/v1/spaces/charging-sessions")
     public ApiResponse<SpaceOperations.ChargingView> start(@RequestHeader("Idempotency-Key") String key,
