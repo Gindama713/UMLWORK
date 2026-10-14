@@ -26,6 +26,7 @@ package "access-service" {
     -jdbc: JdbcTemplate
     -mapper: RowMapper<SessionRow>
     ~insert(id: String, plate: String, type: String, reservationId: String, entry: OffsetDateTime, key: String, payload: String): void
+    ~withRequestLock<T>(key: String, action: Supplier<T>): T
     ~chooseSpace(id: String, space: SpaceView): void
     ~reserveExit(id: String, intent: ExitIntent): ExitIntent
     ~exitRequested(id: String, exit: OffsetDateTime, billId: String, exception: String, operator: String, monthlyPassId: String, exceptions: List<ExceptionView>): void

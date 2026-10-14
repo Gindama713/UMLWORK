@@ -4,6 +4,7 @@ import static cn.jsuhao.parking.access.ApiModels.*;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -13,7 +14,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +50,25 @@ class AccessRepository {
         if (!operation.equals(saved.get("operation_name")) || !signature.equals(saved.get("request_signature")))
             throw new ApiFailure("IDEMPOTENCY_CONFLICT", org.springframework.http.HttpStatus.CONFLICT,
                     "请求键已用于其他请求内容");
+    }
+
+    <T> T withRequestLock(String key, Supplier<T> action) {
+        // ponytail: one extra DB connection is held during Feign calls; a durable claim can shorten this lock later.
+        return jdbc.execute((ConnectionCallback<T>) connection -> {
+            connection.setAutoCommit(false);
+            try {
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT request_key FROM access_request_key WHERE request_key=? FOR UPDATE")) {
+                    statement.setString(1, key);
+                    try (ResultSet rows = statement.executeQuery()) {
+                        if (!rows.next()) throw new IllegalStateException("Request key was not registered");
+                    }
+                }
+                return action.get();
+            } finally {
+                connection.rollback(); // Lock only; entry/compensation records commit on their own connections.
+            }
+        });
     }
 
     Optional<ExitIntent> exitIntent(String id) {

@@ -1,11 +1,11 @@
 # 需求—模型—代码—测试映射（【AI-辅助】）
 
-更新于 2026-10-13。下表“已验证”含自动测试、本机真实 MySQL 顺序联调、Nacos 服务发现、Redis 报表缓存及有记录的并发/断线注入；逐项证据见 [联调记录](code-audit.md)、[故障注入记录](mysql-fault-tests.md)和[交接记录](agent-handoff.md)。当前源码本机通过 23 条后端测试与 4 条前端测试；既有 Windows Docker 网关烟测证据见交接记录，2026-10-13 新增的充电恢复接口尚未在 Docker 实测。烟测只覆盖其中部分用例，其余沿用表内对应证据。Nacos 控制台截图和课程要求的本人截图尚未完成。报告图号由姜苏豪排版时填写。
+更新于 2026-10-14。下表“已验证”含自动测试、本机真实 MySQL 顺序联调、Nacos 服务发现、Redis 报表缓存及有记录的并发/断线注入；逐项证据见 [联调记录](code-audit.md)、[故障注入记录](mysql-fault-tests.md)和[交接记录](agent-handoff.md)。当前源码本机通过 25 条后端测试与 4 条前端测试；既有 Windows Docker 网关烟测证据见交接记录，2026-10-13 的充电恢复接口和 2026-10-14 的同键并发入场事务尚未在 Docker 实测。烟测只覆盖其中部分用例，其余沿用表内对应证据。Nacos 控制台截图和课程要求的本人截图尚未完成。报告图号由姜苏豪排版时填写。
 
 | UC | 需求结果 | 权威服务/接口 | 主要表 | 可编辑模型源 | 当前验证 |
 |---|---|---|---|---|---|
 | 01 | 四类车位可查、新增、停用/恢复 | space：GET/POST /api/v1/spaces，PATCH /api/v1/spaces/{id}/service-status | parking_space、charger | 01、02、12、15、16 | MySQL 网关查询、新增、停用、恢复通过；当前 Docker 栈核对 31 个种子位及 6 个充电桩 |
-| 02 | 唯一停车记录并占位 | access：POST /api/v1/access/entries；space：occupy | parking_session、parking_space | 03、05、06、11、15、16 | MySQL 网关入场成功；重复车牌有自动测试；真实 MySQL 8 路同车位占用仅 1 路成功 |
+| 02 | 唯一停车记录并占位 | access：POST /api/v1/access/entries；space：occupy | parking_session、parking_space | 03、05、06、11、15、16 | MySQL 网关入场成功；重复车牌有自动测试；真实 MySQL 8 路同车位占用仅 1 路成功；H2 同键并发入场测试由修复前失败变为通过，真实 MySQL 同键场景待复测 |
 | 03 | 分时阶梯计费、每日封顶 | billing：POST /internal/v1/billing/bills；access：冻结出场意图 | bill、payment、exit_intent、access_request_key | 03、07、08、11、15、16、17 | 5 条定价边界测试；MySQL 2 小时账单 1000 分；billing 断线后保留意图、重试仅一账单 |
 | 04 | 模拟支付、发票申请 | billing：payments、invoice-requests | bill、payment、invoice_request | 03、07、08、14、16、17 | MySQL 8 路并发支付仅一笔成功；支付后释放失败保持待释放、恢复不二次收费；发票申请通过 |
 | 05 | 指定车位预约与预付 | pass：reservations、pay、cancel、consume、GET reservations/{id}；space：内部只读车位列表 | reservation、reservation_prepayment | 04、09、10、11、15、16 | MySQL 8 路同窗预约仅一路成功；预约优惠、预付抵扣、差额退款和重试通过；到期扫描与 USED 不回退有自动测试；内部 GET 与创建/取消预约在 Docker 栈验证 |

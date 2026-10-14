@@ -8,6 +8,13 @@ participant "PassClient" as pass
 participant "SpaceClient" as space
 收费员 -> controller : POST /api/v1/access/entries
 controller -> access : enter(request,key)
+note over access,db
+  独立锁事务持有请求键行锁，
+  同键并发重试等待原入场完成；
+  入场记录单独持久化以支持崩溃重试。
+  占位仍是跨服务调用，失败须补偿；
+  这不是分布式数据库事务。
+end note
 access -> db : INSERT ENTERING（唯一 active_plate/request_key）
 opt 预约位
   access -> pass : consume(reservationId,sessionId)

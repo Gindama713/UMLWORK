@@ -24,7 +24,7 @@
 | POST /internal/v1/spaces/{spaceId}/occupy | {parkingSessionId} | {spaceId,type,floor,zone,number,status,parkingSessionId} | 条件更新 AVAILABLE→OCCUPIED；同 session 重试返回相同结果 |
 | POST /internal/v1/spaces/{spaceId}/release | {parkingSessionId} | 同上，status=AVAILABLE | 只有相同 session 可释放；重复释放幂等 |
 | POST /internal/v1/spaces/{spaceId}/settlement | {parkingSessionId} | {parkingSessionId,chargingCents} | 出账前冻结本停车记录充电费用；必须仍占用此车位且无 ACTIVE 充电；有 ACTIVE 返回 409 STATE_CONFLICT；冻结后禁止新增充电，同 session 重试返回原快照 |
-| POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；出场附加字段用于页面重开后恢复待结算工作台 |
+| POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；同键并发入场由 access 自有库事务串行化，重试返回同一停车记录；出场附加字段用于页面重开后恢复待结算工作台 |
 | GET /api/v1/access/locate?plateNumber=... | plateNumber 必填 | 同上 | 仅返回仍在场车辆；带回已冻结出场意图；billing 故障时 `EXIT_PENDING_PAYMENT` 的 billId 可暂为空，重试出账后再支付/释放 |
 | GET /internal/v1/access/sessions?from=...&to=... | 带偏移量的 from、to，左闭右开 | [{parkingSessionId,entryTime,exitTime?,status}] | 只给 analytics 统计已完成入场的记录（PARKED/EXIT_PENDING_PAYMENT/PAID_PENDING_RELEASE/CLOSED），排除 ENTERING/ENTRY_FAILED |
 

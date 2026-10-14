@@ -2,6 +2,7 @@ package cn.jsuhao.parking.access;
 
 import static cn.jsuhao.parking.access.ApiModels.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -11,6 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
@@ -32,6 +38,63 @@ class AccessServiceTest {
     @MockitoBean SpaceClient spaces;
     @MockitoBean BillingClient billing;
     @MockitoBean PassClient passes;
+
+    @Test
+    void concurrentRetryOfOneEntryOccupiesOnlyOnce() throws Exception {
+        String spaceId = UUID.randomUUID().toString();
+        String key = UUID.randomUUID().toString();
+        var input = new EntryRequest("苏K" + UUID.randomUUID().toString().substring(0, 5), "NORMAL", null,
+                OffsetDateTime.parse("2026-10-01T08:00:00+08:00"));
+        var available = new SpaceView(spaceId, "NORMAL", "B1", "A", "A-001", "AVAILABLE", null);
+        var firstListing = new CountDownLatch(1);
+        var continueFirst = new CountDownLatch(1);
+        var listings = new AtomicInteger();
+        when(spaces.available("NORMAL")).thenAnswer(call -> {
+            if (listings.incrementAndGet() == 1) {
+                firstListing.countDown();
+                assertTrue(continueFirst.await(5, TimeUnit.SECONDS));
+            }
+            return Envelope.ok(List.of(available));
+        });
+        when(spaces.occupy(eq(spaceId), anyString(), any())).thenAnswer(call ->
+                Envelope.ok(new SpaceView(spaceId, "NORMAL", "B1", "A", "A-001", "OCCUPIED",
+                        call.<SessionRef>getArgument(2).parkingSessionId())));
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var first = pool.submit(() -> service.enter(input, key));
+            assertTrue(firstListing.await(5, TimeUnit.SECONDS));
+            assertEquals("ENTERING", repository.byRequestKey(key).orElseThrow().status());
+            var retryStarted = new CountDownLatch(1);
+            var retry = pool.submit(() -> {
+                retryStarted.countDown();
+                return service.enter(input, key);
+            });
+            assertTrue(retryStarted.await(5, TimeUnit.SECONDS));
+            try {
+                assertThrows(TimeoutException.class, () -> retry.get(1, TimeUnit.SECONDS));
+            } finally {
+                continueFirst.countDown();
+            }
+            assertEquals(first.get(5, TimeUnit.SECONDS), retry.get(5, TimeUnit.SECONDS));
+            verify(spaces, times(1)).occupy(eq(spaceId), anyString(), any());
+        }
+    }
+
+    @Test
+    void failedEntryKeepsCompensationAfterTransactionEnds() {
+        String spaceId = UUID.randomUUID().toString();
+        String key = UUID.randomUUID().toString();
+        String plate = "苏L" + UUID.randomUUID().toString().substring(0, 5);
+        var available = new SpaceView(spaceId, "NORMAL", "B1", "A", "A-001", "AVAILABLE", null);
+        when(spaces.available("NORMAL")).thenReturn(Envelope.ok(List.of(available)));
+        when(spaces.occupy(eq(spaceId), anyString(), any())).thenThrow(remote(503, "DEPENDENCY_UNAVAILABLE"));
+        when(spaces.release(eq(spaceId), anyString(), any())).thenReturn(Envelope.ok(available));
+
+        assertEquals("DEPENDENCY_UNAVAILABLE", assertThrows(ApiFailure.class, () ->
+                service.enter(new EntryRequest(plate, "NORMAL", null,
+                        OffsetDateTime.parse("2026-10-01T08:00:00+08:00")), key)).code());
+        assertEquals("ENTRY_FAILED", repository.byRequestKey(key).orElseThrow().status());
+        assertTrue(repository.activePlate(plate).isEmpty());
+    }
 
     @Test
     void entryPaymentFailureThenRetryClosesExactlyOneSession() {

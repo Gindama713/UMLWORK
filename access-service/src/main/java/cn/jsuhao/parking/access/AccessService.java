@@ -54,6 +54,11 @@ class AccessService {
         String payload = plate + "|" + type + "|" + reservationId + "|" +
                 (input.entryTime() == null ? "AUTO" : input.entryTime().toInstant());
         repo.registerRequest(key, "ENTRY", payload);
+        return repo.withRequestLock(key, () -> enterLocked(plate, type, reservationId, entry, key, payload));
+    }
+
+    private SessionView enterLocked(String plate, String type, String reservationId,
+            OffsetDateTime entry, String key, String payload) {
         SessionRow session = repo.byRequestKey(key).orElse(null);
         if (session == null) {
             String id = UUID.randomUUID().toString();
