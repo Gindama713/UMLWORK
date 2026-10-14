@@ -2,6 +2,12 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-14：入场请求键锁的连接池容量保护
+
+- **UC-02，图 15**：复查前一轮同键行锁发现，每个正在处理的入场需要一条锁连接，再需要另一条连接提交记录。若锁连接占满 Hikari 池，处理中的请求会互相等待直到超时。`AccessRepository` 现在从已启动的 Hikari 池读取最大连接数，将同时持锁的入场数限制为 `poolSize - 1`；池容量小于 2 时明确拒绝启动该操作。已存在的请求键先只读校验，新键才尝试插入，避免重复请求在入队前执行无效更新并锁住同一行。`AccessServiceTest` 将池收窄至 2；修复前同键并发测试因重复更新锁等待超时失败，修复后同键重试返回同一停车记录、只占位一次，改内容复用同键仍返回 `IDEMPOTENCY_CONFLICT`。停车记录仍独立提交，异常补偿不被锁事务回滚。
+- **边界**：这是单实例连接池容量保护，跨实例仍依赖数据库行锁。长时间 Feign 调用仍会占用锁连接；需要更高吞吐量时应引入持久化处理权并缩短锁持有时间。本轮无 HTTP 字段、状态、表、费率或依赖变化；接口契约仅澄清请求键行锁与独立提交语义。H2 压力测试不代表真实 MySQL 竞争已验证。
+- **验证**：Java 21 `./mvnw.cmd -q test` 的七份 Surefire XML 合计 25 条、0 失败、0 错误；PlantUML 1.2024.3 对图 15 `-checkonly`、渲染退出 0，已打开 `models/rendered/15-design-classes.png` 检查可读。Docker Desktop Linux Engine 和 Ubuntu VM 仍不可达，未进行本轮真实 MySQL/网关重测。
+
 ## 2026-10-14：UC-02 同键并发入场加固
 
 - **复现**：新增 `AccessServiceTest.concurrentRetryOfOneEntryOccupiesOnlyOnce`，让第一次请求停在候选车位查询后，第二次以同一请求键、同一内容并发进入。修复前单测退出 1：预期第二次等待，实际立即完成；原有 `access_request_key` 的无操作重复插入没有覆盖整个入场流程。

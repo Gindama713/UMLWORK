@@ -25,6 +25,8 @@ package "access-service" {
   class AccessRepository {
     -jdbc: JdbcTemplate
     -mapper: RowMapper<SessionRow>
+    -requestLockSlots: Semaphore
+    ~registerRequest(key: String, operation: String, payload: String): void
     ~insert(id: String, plate: String, type: String, reservationId: String, entry: OffsetDateTime, key: String, payload: String): void
     ~withRequestLock<T>(key: String, action: Supplier<T>): T
     ~chooseSpace(id: String, space: SpaceView): void

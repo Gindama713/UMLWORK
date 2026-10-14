@@ -30,6 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
+        "spring.datasource.hikari.maximum-pool-size=2",
         "spring.cloud.nacos.discovery.enabled=false"
 })
 class AccessServiceTest {
@@ -75,6 +76,8 @@ class AccessServiceTest {
                 continueFirst.countDown();
             }
             assertEquals(first.get(5, TimeUnit.SECONDS), retry.get(5, TimeUnit.SECONDS));
+            assertEquals("IDEMPOTENCY_CONFLICT", assertThrows(ApiFailure.class, () ->
+                    service.enter(new EntryRequest("苏M12345", "NORMAL", null, input.entryTime()), key)).code());
             verify(spaces, times(1)).occupy(eq(spaceId), anyString(), any());
         }
     }

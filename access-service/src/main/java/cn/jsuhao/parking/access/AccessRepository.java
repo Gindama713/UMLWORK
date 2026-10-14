@@ -14,7 +14,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.RowMapper;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AccessRepository {
     private final JdbcTemplate jdbc;
     private final RowMapper<SessionRow> mapper = this::map;
+    private Semaphore requestLockSlots;
 
     AccessRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -44,31 +47,52 @@ class AccessRepository {
             signature = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(payload.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
-        jdbc.update("INSERT INTO access_request_key(request_key,operation_name,request_signature) "
-                + "VALUES (?,?,?) ON DUPLICATE KEY UPDATE request_key=request_key", key, operation, signature);
-        var saved = jdbc.queryForMap("SELECT operation_name,request_signature FROM access_request_key WHERE request_key=?", key);
-        if (!operation.equals(saved.get("operation_name")) || !signature.equals(saved.get("request_signature")))
+        var saved = jdbc.queryForList(
+                "SELECT operation_name,request_signature FROM access_request_key WHERE request_key=?", key);
+        if (saved.isEmpty()) {
+            jdbc.update("INSERT INTO access_request_key(request_key,operation_name,request_signature) "
+                    + "VALUES (?,?,?) ON DUPLICATE KEY UPDATE request_key=request_key", key, operation, signature);
+            saved = jdbc.queryForList(
+                    "SELECT operation_name,request_signature FROM access_request_key WHERE request_key=?", key);
+        }
+        var registered = saved.getFirst();
+        if (!operation.equals(registered.get("operation_name")) || !signature.equals(registered.get("request_signature")))
             throw new ApiFailure("IDEMPOTENCY_CONFLICT", org.springframework.http.HttpStatus.CONFLICT,
                     "请求键已用于其他请求内容");
     }
 
     <T> T withRequestLock(String key, Supplier<T> action) {
-        // ponytail: one extra DB connection is held during Feign calls; a durable claim can shorten this lock later.
-        return jdbc.execute((ConnectionCallback<T>) connection -> {
-            connection.setAutoCommit(false);
-            try {
-                try (PreparedStatement statement = connection.prepareStatement(
-                        "SELECT request_key FROM access_request_key WHERE request_key=? FOR UPDATE")) {
-                    statement.setString(1, key);
-                    try (ResultSet rows = statement.executeQuery()) {
-                        if (!rows.next()) throw new IllegalStateException("Request key was not registered");
+        // ponytail: hold at most poolSize-1 lock connections; replace with a durable claim if throughput demands it.
+        Semaphore slots = requestLockSlots();
+        slots.acquireUninterruptibly();
+        try {
+            return jdbc.execute((ConnectionCallback<T>) connection -> {
+                connection.setAutoCommit(false);
+                try {
+                    try (PreparedStatement statement = connection.prepareStatement(
+                            "SELECT request_key FROM access_request_key WHERE request_key=? FOR UPDATE")) {
+                        statement.setString(1, key);
+                        try (ResultSet rows = statement.executeQuery()) {
+                            if (!rows.next()) throw new IllegalStateException("Request key was not registered");
+                        }
                     }
+                    return action.get();
+                } finally {
+                    connection.rollback(); // Entry/compensation records commit on their own connections.
                 }
-                return action.get();
-            } finally {
-                connection.rollback(); // Lock only; entry/compensation records commit on their own connections.
-            }
-        });
+            });
+        } finally {
+            slots.release();
+        }
+    }
+
+    private synchronized Semaphore requestLockSlots() {
+        if (requestLockSlots == null) {
+            if (!(jdbc.getDataSource() instanceof HikariDataSource pool) || pool.getMaximumPoolSize() < 2)
+                throw new IllegalStateException("Access database pool needs at least two connections");
+            requestLockSlots = new Semaphore(pool.getMaximumPoolSize() - 1, true);
+        }
+        return requestLockSlots;
     }
 
     Optional<ExitIntent> exitIntent(String id) {
