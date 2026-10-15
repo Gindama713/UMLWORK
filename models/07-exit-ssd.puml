@@ -2,20 +2,26 @@
 title UC-03＋UC-04 出场结算 SSD（AI-辅助）
 actor 车主
 participant "机场停车系统" as system
-车主 -> system : requestExit(sessionId, exitTime, exceptionType?)
-system --> 车主 : billId, feeItems, amountDueCents
-车主 -> system : completeExit(sessionId, simulatedResult)
+车主 -> system : ① requestExit(sessionId, exitTime, exceptionType?)
+activate system
+system --> 车主 : ④ billId, feeItems, amountDueCents
+deactivate system
+车主 -> system : ⑤ completeExit(sessionId, simulatedResult)
+activate system
 alt 支付失败
   system --> 车主 : EXIT_PENDING_PAYMENT
 else 支付成功但释放失败
   system --> 车主 : PAID_PENDING_RELEASE
   车主 -> system : completeExit(sessionId, SUCCESS)
-  system --> 车主 : CLOSED
+  system --> 车主 : ⑥ CLOSED
 else 成功
-  system --> 车主 : CLOSED
+  system --> 车主 : ⑥ CLOSED
 end
+deactivate system
 opt 需要发票
-  车主 -> system : requestInvoice(billId, invoiceTitle)
+  车主 -> system : ⑦ requestInvoice(billId, invoiceTitle)
+  activate system
   system --> 车主 : invoiceRequestId, REQUESTED
+  deactivate system
 end
 @enduml

@@ -1,45 +1,96 @@
 @startuml
-title 跨服务停车流程活动图（AI-辅助）
+title UC-02 入场跨服务活动图（AI-辅助）
+|收费员/客户端|
 start
-:模拟车牌识别并规范化;
-:access 写 ENTERING，唯一车牌约束;
+:输入或本地模拟车牌;
+|access-service|
+:规范化车牌，写入 ENTERING;
 if (有预约?) then (是)
-  :pass 核验并核销预约;
+  |pass-service|
+  :核验并核销预约;
 endif
-:space 条件占用车位;
-if (占位成功?) then (否)
-  :补偿预约核销;
-  :access 记 ENTRY_FAILED;
-  stop
+|space-service|
+:原子占用指定或可用车位;
+if (占位成功?) then (是)
+  |access-service|
+  :写入 PARKED 并返回位置;
+else (否)
+  |space-service|
+  :按停车记录 ID 补偿可能的占用;
+  |pass-service|
+  :如已核销则补偿恢复预约;
+  |access-service|
+  if (补偿均完成?) then (是)
+    :写入 ENTRY_FAILED;
+  else (否)
+    :保留 ENTERING 待同键重试;
+  endif
 endif
-:access 记 PARKED;
-:按需寻车或充电;
-:出场时核验权益;
+stop
+@enduml
+
+@startuml
+title UC-03 出场准备与出账跨服务活动图（AI-辅助）
+|车主/客户端|
+start
+:申请出场;
+|access-service|
+:读取停车记录并核验权益;
+|space-service|
 if (仍有 ACTIVE 充电?) then (是)
-  :提示先结束充电，保持 PARKED;
+  |车主/客户端|
+  :先结束充电;
   stop
 endif
-:space 冻结充电费用，禁止新增充电;
-:access 保存出场意图并记 EXIT_PENDING_PAYMENT;
-:billing 按规则版本生成账单;
+|space-service|
+:冻结充电费用;
+|access-service|
+:保存出场意图，置 EXIT_PENDING_PAYMENT;
+|billing-service|
+:按费率版本出账;
 if (出账成功?) then (否)
-  :保留原出场意图，待 billing 恢复后重试;
+  |access-service|
+  :保留原意图，同键重试;
   stop
 endif
-:access 保存账单 ID;
+|access-service|
+:返回账单与同一出场意图;
+stop
+@enduml
+
+@startuml
+title UC-04 支付与释放跨服务活动图（AI-辅助）
+|车主/客户端|
+start
+:发起模拟支付或月卡结算;
+|pass-service|
+:适用时幂等扣减月卡余额;
+|billing-service|
+:记录支付结果;
 if (支付成功?) then (否)
-  :保留待支付，允许新尝试;
+  |access-service|
+  :保留 EXIT_PENDING_PAYMENT;
   stop
 endif
-:access 记 PAID_PENDING_RELEASE;
-if (预约预付剩余?) then (是)
-  :pass 幂等退款差额;
+|access-service|
+:写入 PAID_PENDING_RELEASE;
+if (预约有待退差额?) then (是)
+  |pass-service|
+  :幂等退还预约预付差额;
+  if (退款成功?) then (否)
+    |access-service|
+    :保留 PAID_PENDING_RELEASE 待重试;
+    stop
+  endif
 endif
-:space 幂等释放车位;
+|space-service|
+:幂等释放车位;
 if (释放成功?) then (否)
+  |access-service|
   :保留 PAID_PENDING_RELEASE 待重试;
   stop
 endif
-:access 记 CLOSED;
+|access-service|
+:写入 CLOSED;
 stop
 @enduml

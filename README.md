@@ -88,10 +88,10 @@ Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 
 - GitHub Actions 的 [`Verify`](.github/workflows/verify.yml) 在推送、PR 和手动触发时运行 Java 21 后端测试、Node 22 前端测试与构建；它使用 H2，不代替下面的真实 MySQL 与 Docker 联调。远端运行结果以 GitHub Actions 页面为准。
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
-- 23 条后端测试均通过（原有 20 条 + 异常留痕 1 条、预约到期及冲突边界 2 条）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
+- 最近一次 Java 21 全模块自动测试为 25 条、0 失败（2026-10-14；见 `docs/agent-handoff.md`）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
-- [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，22 张渲染图位于 `models/rendered/`；新增 17 号服务级出场进程顺序图，15 号源文件分别渲染五个服务的类图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
+- [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，28 张渲染图位于 `models/rendered/`（23 张 UML、5 张 ER）；11 号分三张泳道图，15、16 号分别渲染五个服务的类图和 ER 图，17 号为服务级出场进程顺序图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
 
 ## 协作约定
 

@@ -1,5 +1,5 @@
 @startuml
-title access-service 设计类图（AI-辅助；字段与签名按实现）
+title access-service 设计类图（AI-辅助；关键成员按实现）
 skinparam classAttributeIconSize 0
 
 package "access-service" {
@@ -27,34 +27,18 @@ package "access-service" {
     -mapper: RowMapper<SessionRow>
     -requestLockSlots: Semaphore
     ~registerRequest(key: String, operation: String, payload: String): void
-    ~insert(id: String, plate: String, type: String, reservationId: String, entry: OffsetDateTime, key: String, payload: String): void
     ~withRequestLock<T>(key: String, action: Supplier<T>): T
     ~chooseSpace(id: String, space: SpaceView): void
     ~reserveExit(id: String, intent: ExitIntent): ExitIntent
-    ~exitRequested(id: String, exit: OffsetDateTime, billId: String, exception: String, operator: String, monthlyPassId: String, exceptions: List<ExceptionView>): void
-    ~exceptions(id: String): List<ExceptionView>
     ~paid(id: String): void
     ~closed(id: String): void
   }
-  interface "SpaceClient" as AccessSpaceClient {
-    +occupy(spaceId: String, key: String, body: SessionRef): Envelope<SpaceView>
-    +release(spaceId: String, key: String, body: SessionRef): Envelope<SpaceView>
-    +settle(spaceId: String, key: String, body: SessionRef): Envelope<ChargingFees>
-  }
-  interface "PassClient" as AccessPassClient {
-    +eligibility(plate: String, entry: String, exit: String, spaceType: String, parkingSessionId: String): Envelope<BenefitView>
-    +deduct(id: String, key: String, body: DeductionRequest): Envelope<Object>
-  }
-  interface "BillingClient" as AccessBillingClient {
-    +createBill(key: String, body: BillRequest): Envelope<BillView>
-    +bill(billId: String): Envelope<BillView>
-    +pay(billId: String, key: String, body: PaymentRequest): Envelope<PaymentView>
-  }
   AccessController "1" --> "1" AccessService : service
   AccessService "1" --> "1" AccessRepository : repo
-  AccessService "1" --> "1" AccessSpaceClient : spaces
-  AccessService "1" --> "1" AccessPassClient : passes
-  AccessService "1" --> "1" AccessBillingClient : billing
+  note right of AccessService
+    Feign 客户端字段保留在类中；
+    服务调用关系列于组件图和设计顺序图。
+  end note
 }
 @enduml
 
@@ -200,7 +184,7 @@ package "pass-service" {
 @enduml
 
 @startuml
-title analytics-service 设计类图（AI-辅助；字段与签名按实现）
+title analytics-service 设计类图（AI-辅助；关键成员按实现）
 skinparam classAttributeIconSize 0
 package "analytics-service" {
   class TrafficController {
@@ -227,19 +211,6 @@ package "analytics-service" {
   interface AccessTrafficClient {
     +sessions(from: String, to: String): Envelope<List<TrafficSession>>
   }
-  class "Envelope<T>" as TrafficEnvelope <<record>> {
-    -code: String
-    -message: String
-    -data: T
-    -requestId: String
-    ~ok<T>(data: T): Envelope<T>
-  }
-  class TrafficSession <<record>> {
-    -parkingSessionId: String
-    -entryTime: OffsetDateTime
-    -exitTime: OffsetDateTime
-    -status: String
-  }
   class TrafficBucket <<record>> {
     -start: OffsetDateTime
     -count: int
@@ -253,21 +224,10 @@ package "analytics-service" {
     -peakBucket: TrafficBucket
     -totalEntries: int
   }
-  class TrafficFailure {
-    ~code: String
-    ~status: HttpStatus
-  }
-  class TrafficErrors {
-    -log: Logger
-    ~business(error: TrafficFailure): ResponseEntity<Envelope<Void>>
-    ~invalid(error: Exception): ResponseEntity<Envelope<Void>>
-    ~database(error: DataAccessException): ResponseEntity<Envelope<Void>>
-  }
   TrafficController "1" --> "1" TrafficService : service
   TrafficService "1" --> "1" AccessTrafficClient : Feign, read only
   TrafficService "1" --> "1" SavedReportCache : saved reports only
   TrafficReport "1" --> "0..*" TrafficBucket : buckets
-  TrafficErrors ..> TrafficFailure : handles
   note right of TrafficService
     jdbc 仅写 analytics-service 自有报表库；
     原始车流记录仅通过 AccessTrafficClient 只读获取。

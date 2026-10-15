@@ -1,41 +1,87 @@
 @startuml
 title UC-03＋UC-04 出场设计顺序图（AI-辅助）
 actor 车主
-participant "AccessService" as access
-participant "SpaceClient" as space
-participant "PassClient" as pass
-participant "BillingClient" as billing
-database "parking_access" as db
-车主 -> access : exit-requests(sessionId, exitTime)
-access -> pass : eligibility(plate,entry,exit,type,sessionId)
-access -> space : settlement(spaceId,sessionId)
-note right of space : 无 ACTIVE 充电时冻结费用快照\n冻结后禁止新增充电
-space --> access : chargingCents 或 STATE_CONFLICT
-access -> db : 原子保存 exit_intent 并置 EXIT_PENDING_PAYMENT
-access -> billing : createBill(sessionId,时间,权益,充电)
+boundary AccessController as controller
+control AccessService as access
+entity AccessRepository as repo
+participant SpaceClient as space
+participant PassClient as pass
+participant BillingClient as billing
+
+车主 -> controller : ① POST exit-requests(sessionId, exitTime)
+activate controller
+controller -> access : requestExit(request, key)
+activate access
+access -> repo : ① byId(sessionId); exitIntent(sessionId)
+opt 没有已冻结的出场意图
+  access -> pass : ② eligibility(plate, entry, exit, type)
+  pass --> access : 权益快照
+end
+access -> space : ② settlement(spaceId, sessionId)
+note right of space : 无 ACTIVE 充电时冻结费用快照；\n同 session 重试返回原快照
+space --> access : chargingCents / STATE_CONFLICT
+opt 首次出场申请
+  access -> repo : ② reserveExit(intent)
+  repo --> access : EXIT_PENDING_PAYMENT 已持久化
+end
+access -> billing : ③ createBill(sessionId, 快照, 幂等键)
 alt billing 暂不可用
   billing --> access : DEPENDENCY_UNAVAILABLE
-  access --> 车主 : 保留原出场意图，稍后重试
+  access --> controller : 503，原出场意图保留
 else 出账成功
-  billing --> access : billId, amountDueCents, prepaidRefundCents
-  access -> db : 原子保存 billId 与异常处理快照
-  note right of db : 丢卡记录人工处理人；超长费用由账单明细判定，处理人 SYSTEM
+  billing --> access : billId, amountDueCents, feeItems
+  access -> repo : ③ exitRequested(billId, 异常快照)
+  repo --> access : 账单 ID 已保存
+  access --> controller : ④ 账单摘要
 end
-access --> 车主 : 账单摘要（出账成功时）
+deactivate access
+controller --> 车主 : 账单摘要 / 503 稍后同键重试
+deactivate controller
+
 opt 已生成账单，车主请求完成出场
-车主 -> access : complete-exit(SUCCESS/FAILURE)
-opt 有效月卡且账单未付
-  access -> pass : deduct(monthlyPassId,amountDueCents)
-end
-access -> billing : pay(billId,模拟结果/余额来源)
-billing --> access : PAID 或 UNPAID
-alt 已支付
-  access -> db : UPDATE PAID_PENDING_RELEASE
-  opt 预约预付有差额
-    access -> pass : refund-remainder(reservationId,sessionId)
+  车主 -> controller : ⑤ POST complete-exit(SUCCESS/FAILURE)
+  activate controller
+  controller -> access : completeExit(request, key)
+  activate access
+  alt 当前状态 EXIT_PENDING_PAYMENT
+    access -> billing : bill(billId)
+    billing --> access : PAID / UNPAID
+    opt 有效月卡、余额足够且账单未付
+      access -> pass : ⑤ deduct(monthlyPassId, amountDueCents)
+      pass --> access : 扣费结果
+    end
+    opt 账单未付
+      access -> billing : ⑤ pay(billId, 模拟结果/余额来源)
+      billing --> access : PAID / UNPAID
+    end
+  else 当前状态 PAID_PENDING_RELEASE（重试）
+    note over access : 跳过支付，沿用已付账单
   end
-  access -> space : release(spaceId,sessionId)
-  access -> db : UPDATE CLOSED
-end
+  alt 账单已付
+    opt 此前状态为 EXIT_PENDING_PAYMENT
+      access -> repo : ⑥ paid(sessionId)
+      repo --> access : PAID_PENDING_RELEASE
+    end
+    opt 预约预付款有待退差额
+      access -> pass : ⑥ refundRemainder(reservationId, sessionId)
+      pass --> access : 原退款结果 / 暂不可用
+      note over access,pass : 退款失败时不释放车位，保留 PAID_PENDING_RELEASE
+    end
+    access -> space : ⑥ release(spaceId, sessionId) [无退款或退款成功]
+    alt 释放成功
+      space --> access : AVAILABLE
+      access -> repo : ⑥ closed(sessionId)
+      repo --> access : CLOSED
+    else 释放暂失败
+      space --> access : DEPENDENCY_UNAVAILABLE
+      note over access,repo : 保留 PAID_PENDING_RELEASE；\n重试跳过已成功支付
+    end
+  else 支付失败
+    note over access : 保留 EXIT_PENDING_PAYMENT；\n可重新发起支付尝试
+  end
+  access --> controller : ⑦ CLOSED / 待恢复状态
+  deactivate access
+  controller --> 车主 : 最终状态
+  deactivate controller
 end
 @enduml

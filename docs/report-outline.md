@@ -15,8 +15,8 @@
 
 | 模板要求 | 现状 | 证据位置 |
 |---|---|---|
-| UML 图 ≥12 幅 | **18 份源文件、22 张 PNG**（15 号源文件按五服务分别渲染） | `models/*.puml`、`models/rendered/` |
-| 测试用例 ≥10 条 | **23 条自动测试** + 6 组真实 MySQL 并发/故障注入 | `*/src/test/`、`docs/mysql-fault-tests.md` |
+| UML 图 ≥12 幅 | **18 份源文件、28 张 PNG**（其中 23 张 UML、5 张 ER；11、15、16 号均分图渲染） | `models/*.puml`、`models/rendered/` |
+| 测试用例 ≥10 条 | **25 条自动测试** + 6 组真实 MySQL 并发/故障注入 | `*/src/test/`、`docs/mysql-fault-tests.md` |
 | 界面截图 ≥8 张（含标题栏） | ❌ **待本人采集** | agent 的 QA 实拍不能替代 |
 | 8～10 分钟带字幕录屏（含跨服务） | ❌ **待本人录制** | — |
 | 建模工程文件可现场打开 | ✓ PlantUML 源码即工程文件 | `models/` |
@@ -46,7 +46,7 @@
 |---|---|---|
 | 2.1 领域模型（概念类图） | ✓ | **图2-1** = `models/02-domain-model.puml`。模板硬要求：**只有类名、属性、关联与多重性，不得出现方法与界面类**。需配关联说明段 |
 | 2.2 系统顺序图（SSD） | ✓ | **图2-2、图2-3** = `models/05-entry-ssd.puml`、`models/07-exit-ssd.puml`（另有 `09-reservation-ssd.puml` 可作第三张）。系统须画成**黑箱**，只表达参与者→系统的操作与返回 |
-| 2.3 业务流程活动图 | ✓ | **图2-4** = `models/11-cross-service-activity.puml`，已带泳道区分服务职责。选做加分项「操作契约」未做，可不做 |
+| 2.3 业务流程活动图 | ✓ | **图2-4～图2-6** = `models/11-cross-service-activity.puml` 渲染出的入场、出场准备、支付释放三张泳道图。选做加分项「操作契约」未做，可不做 |
 
 ### 第三章　体系结构设计
 
@@ -56,9 +56,9 @@
 | 3.2 逻辑视图：微服务划分 | ✎ | 需新建**表3-1**（服务｜职责｜独立 schema｜端口）。现成数据：`README.md` §模块与所有权、`AGENTS.md` §4 |
 | 3.3 开发视图：工程结构与接口 | ✓ | 多模块工程结构树 + **表3-2 服务间接口清单**。接口清单现成：`docs/api-contract.md`（含 DTO、调用方、同步/异步）。需补 DTO 与实体隔离原则的说明段 |
 | 3.4 进程视图：服务交互 | ✓ | **图3-2** = `models/17-process-sequence.puml`，以服务为生命线，展示出场、出账失败后复用意图、支付及释放重试。`06/08/10` 是第 4 章的设计级顺序图。正文仍需说明幂等键+本地事务+补偿/重试的一致性策略 |
-| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。图中是 Ubuntu VM 的 Compose 默认栈：Nginx、gateway、五个业务容器、MySQL 五库和 Redis；Windows 网关烟测通过。VM 未部署 Nacos profile，Sentinel 未接入；本机 Nacos 验证是另一种运行方式，正文应区分两者 |
+| 3.5 物理视图：部署图 | ✓ | **图3-3** = `models/13-deployment.puml`。图中是 Windows Docker Desktop / Ubuntu VM 共用的 Compose 默认栈：Nginx、gateway、五个业务容器、MySQL 五库和 Redis。默认 Compose 未启用 Nacos profile，Sentinel 未接入；本机 Nacos 验证是另一种运行方式，正文应区分两者 |
 | 3.6 组件图 | ✓ | **图3-4** = `models/12-components.puml`，以提供/依赖接口表达服务组装；Redis 只连接 analytics 的已保存报表查询 |
-| 3.7 数据库设计 | ✓ | **图3-5 起** = `models/16-service-er.puml`。需补关键表结构表，以及**禁止跨库 JOIN 下的数据冗余设计说明**（如 access 冗余车牌、billing 快照权益）及其理由 |
+| 3.7 数据库设计 | ✓ | **图3-5～图3-9** = `models/16-service-er.puml` 按五个独立 schema 生成的五张 ER 图。需补关键表结构表，以及**禁止跨库 JOIN 下的数据冗余设计说明**（如 access 冗余车牌、billing 快照权益）及其理由 |
 
 ### 第四章　详细设计
 
@@ -69,7 +69,7 @@
 | 4.3 设计级顺序图 | ✓ | **图4-x** = `models/06`、`08`、`10`。模板要求**与用例规约步骤编号对应** |
 | 4.4 协作图/通信图 | ✓ | **图4-x** = `models/14-communication.puml`，需与对应顺序图互为印证 |
 | 4.5 状态图 | ✓ | **图4-x** = `models/03-parking-session-state.puml`、`04-reservation-state.puml`。模板要求**状态命名与数据库状态字段一致**——已核对一致 |
-| 4.6 核心建模与架构决策说明 | 🔒 **本人原创** | 模板要求列 3～5 个关键决策，四段式：「问题 → 备选方案 → 我的选择与理由 → **AI 建议是什么、我为何采纳/不采纳**」。可取材的真实决策（但必须由本人写成第一人称）：① 车位状态精简为 AVAILABLE/OCCUPIED/OUT_OF_SERVICE，预约位改作**类型**而非状态；② 出场引入「费用冻结 + 出场意图持久化」，把状态提前到 `EXIT_PENDING_PAYMENT`；③ 跨服务一致性放弃分布式事务，改用幂等键+本地事务+补偿；④ 计费金额全程整数「分」；⑤ 前端不引入图表库、手写 SVG |
+| 4.6 核心建模与架构决策说明 | 🔒 **本人原创** | 模板要求列 3～5 个关键决策，四段式：「问题 → 备选方案 → 我的选择与理由 → **AI 建议是什么、我为何采纳/不采纳**」。可取材的真实决策（但必须由本人写成第一人称）：① 车位状态精简为 AVAILABLE/OCCUPIED/OUT_OF_SERVICE，预约位改作**类型**而非状态；② 出场引入「费用冻结 + 出场意图持久化」，把状态提前到 `EXIT_PENDING_PAYMENT`；③ 跨服务一致性放弃分布式事务，改用幂等键+本地事务+补偿；④ 计费金额全程整数「分」；⑤ 运营图表采用 ECharts，车位图仍用 CSS 绘制 |
 
 ### 第五章　系统实现
 
@@ -86,7 +86,7 @@
 | 节 | 状态 | 要点与证据 |
 |---|---|---|
 | 6.1 测试方案与环境 | ✓ | 功能+边界+服务间联调，说明模拟数据规模。素材：`docs/code-audit.md`、`docs/mysql-fault-tests.md` |
-| 6.2 测试用例表 | ✓ | **表6-1**，≥10 条。已有 23 条自动测试（H2、Redis 缓存、预约位内部查询、异常留痕和到期/冲突边界）+ 真实 MySQL 并发与停机注入；Redis 报表缓存另有本机真实 Redis/故障注入记录，见 `docs/agent-handoff.md`。模板**强制要求含跨服务场景与异常用例**——「被调服务停止时调用方容错」已在 `mysql-fault-tests.md` 有真实证据 |
+| 6.2 测试用例表 | ✓ | **表6-1**，≥10 条。已有 25 条自动测试（H2、Redis 缓存、预约位内部查询、异常留痕、到期/冲突边界及同键并发入场）+ 真实 MySQL 并发与停机注入；Redis 报表缓存另有本机真实 Redis/故障注入记录，见 `docs/agent-handoff.md`。模板**强制要求含跨服务场景与异常用例**——「被调服务停止时调用方容错」已在 `mysql-fault-tests.md` 有真实证据 |
 | 6.3 缺陷记录与修复闭环 | ✓ **亮点** | 模板要求「发现｜严重度｜修复情况」。本项目有**三个真实缺陷**可写：① billing 并发支付 7/8 返回 500（REPEATABLE READ 旧快照，`FOR UPDATE` 修复，H2 测不出）；② access 故障时状态语义错误（补 `@Transactional` 原子转 `EXIT_PENDING_PAYMENT`）；③ 前端残留 `reservationId`。**这一节写实了很有分量** |
 | 6.4 测试结论 | ✎ | 通过率 + **对照 1.5 非功能需求逐条判定「达标/未达标」**（须与 1.5 呼应）。注意如实写明未覆盖：跨机多实例、网络分区、真实支付网关 |
 
@@ -122,12 +122,18 @@
 | 图2-1 | 领域模型 | `02-domain-model.puml` | 2.1 |
 | 图2-2 | SSD（入场） | `05-entry-ssd.puml` | 2.2 |
 | 图2-3 | SSD（出场） | `07-exit-ssd.puml` | 2.2 |
-| 图2-4 | 跨服务活动图（泳道） | `11-cross-service-activity.puml` | 2.3 |
+| 图2-4 | 入场跨服务活动图（泳道） | `11-cross-service-activity.puml` → `11-cross-service-activity.png` | 2.3 |
+| 图2-5 | 出场准备与出账活动图（泳道） | 同上 → `11-cross-service-activity_001.png` | 2.3 |
+| 图2-6 | 支付与释放活动图（泳道） | 同上 → `11-cross-service-activity_002.png` | 2.3 |
 | 图3-1 | 服务依赖图 | `draft-service-dependencies.puml` | 3.2 |
 | **图3-2** | **进程视图顺序图** | `17-process-sequence.puml` | 3.4 |
 | 图3-3 | 部署图 | `13-deployment.puml` | 3.5 |
 | 图3-4 | 组件图 | `12-components.puml` | 3.6 |
-| 图3-5 | 服务 ER 图 | `16-service-er.puml` | 3.7 |
+| 图3-5 | space ER 图 | `16-service-er.puml` → `16-service-er.png` | 3.7 |
+| 图3-6 | access ER 图 | 同上 → `16-service-er_001.png` | 3.7 |
+| 图3-7 | pass ER 图 | 同上 → `16-service-er_002.png` | 3.7 |
+| 图3-8 | billing ER 图 | 同上 → `16-service-er_003.png` | 3.7 |
+| 图3-9 | analytics ER 图 | 同上 → `16-service-er_004.png` | 3.7 |
 | 图4-1 | access 设计类图 | `15-design-classes.puml` → `15-design-classes.png` | 4.1 |
 | 图4-2 | billing 设计类图 | 同上 → `15-design-classes_001.png` | 4.1 |
 | 图4-3 | space 设计类图 | 同上 → `15-design-classes_002.png` | 4.1 |

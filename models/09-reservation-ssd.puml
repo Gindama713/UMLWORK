@@ -2,20 +2,26 @@
 title UC-05 预约与预付 SSD（AI-辅助）
 actor 车主
 participant "机场停车系统" as system
-车主 -> system : reserve(plateNumber,spaceId,startTime,endTime)
+车主 -> system : ① reserve(plateNumber,spaceId,startTime,endTime)
+activate system
 alt 时段冲突
   system --> 车主 : RESERVATION_CONFLICT
 else 可预约
-  system --> 车主 : reservationId,PENDING_PAYMENT,prepaidCents
-  车主 -> system : payReservation(reservationId,SUCCESS/FAILURE)
+  system --> 车主 : ③ reservationId,PENDING_PAYMENT,prepaidCents
+  deactivate system
+  车主 -> system : ④ payReservation(reservationId,SUCCESS/FAILURE)
+  activate system
   alt 预付成功
-    system --> 车主 : CONFIRMED
+    system --> 车主 : ⑥ CONFIRMED
   else 预付失败
     system --> 车主 : PENDING_PAYMENT
   end
 end
+deactivate system
 opt 开始前取消
   车主 -> system : cancelReservation(reservationId)
+  activate system
   system --> 车主 : CANCELLED,refundCents
+  deactivate system
 end
 @enduml

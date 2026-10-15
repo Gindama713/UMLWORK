@@ -1,6 +1,7 @@
 @startuml
 title 组件图（AI-辅助）
 skinparam componentStyle rectangle
+skinparam linetype ortho
 component "Vue 3 + Element Plus" as ui
 component "Spring Cloud Gateway" as gateway
 component "access-service" as access
@@ -9,30 +10,29 @@ component "pass-service" as pass
 component "billing-service" as billing
 component "analytics-service" as analytics
 component "Redis 报表缓存（可选）" as redis
-database "parking_access" as dba
-database "parking_space" as dbs
-database "parking_pass" as dbp
-database "parking_billing" as dbb
-database "parking_analytics" as dban
+interface "Space 内部 API" as spaceApi
+interface "Access 只读 API" as accessApi
+interface "Pass 内部 API" as passApi
+interface "Billing 内部 API" as billingApi
 ui --> gateway : REST JSON /api/v1
-gateway --> access
-gateway --> space
-gateway --> pass
-gateway --> billing
-gateway --> analytics
-access --> space : OpenFeign
-access --> pass : OpenFeign
-access --> billing : OpenFeign
-pass --> space : OpenFeign 只读
-analytics --> access : OpenFeign 只读
+gateway --> access : 公开路由
+gateway --> space : 公开路由
+gateway --> pass : 公开路由
+gateway --> billing : 公开路由
+gateway --> analytics : 公开路由
+access -- accessApi : 提供
+space -- spaceApi : 提供
+pass -- passApi : 提供
+billing -- billingApi : 提供
+access ..> spaceApi : OpenFeign 占位/充电/释放
+access ..> passApi : OpenFeign 权益/预约
+access ..> billingApi : OpenFeign 出账/支付
+pass ..> spaceApi : OpenFeign 只读资源
+analytics ..> accessApi : OpenFeign 只读车流
 analytics ..> redis : 已保存报表读穿缓存
-access --> dba
-space --> dbs
-pass --> dbp
-billing --> dbb
-analytics --> dban
 note bottom
-数据库均为独立 schema；服务之间不跨库 JOIN。
+虚线表示服务依赖提供的内部接口；网关只转发公开接口。
+每个服务的独立 schema 见图3-3与图3-5～图3-9；禁止跨库 JOIN。
 Redis 仅缓存 analytics 的已保存报表，MySQL 仍为权威存储。
 end note
 @enduml

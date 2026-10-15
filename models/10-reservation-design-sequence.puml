@@ -1,24 +1,42 @@
 @startuml
 title UC-05 预约设计顺序图（AI-辅助）
 actor 车主
-participant "PassController" as controller
-participant "PassService" as pass
+boundary PassController as controller
+control PassService as pass
 participant "SpaceClient（只读）" as space
 database "parking_pass" as db
-车主 -> controller : POST /api/v1/passes/reservations
+车主 -> controller : ① POST /api/v1/passes/reservations
+activate controller
 controller -> pass : reserve(request,key)
+activate pass
 pass -> space : GET /internal/v1/spaces?type=RESERVATION
 space --> pass : 车位类型与当前状态
-pass -> db : 锁定 reservation_lock(spaceId)
+pass -> db : ② 锁定 reservation_lock(spaceId)
 pass -> db : 检查 [start,end) 重叠
 alt 有冲突
   pass --> controller : RESERVATION_CONFLICT
 else 无冲突
-  pass -> db : INSERT PENDING_PAYMENT
-  pass --> controller : reservationId,prepaidCents
-  车主 -> controller : pay(reservationId,SUCCESS)
-  controller -> pass : pay()
-  pass -> db : 预付流水 + UPDATE CONFIRMED
-  pass --> 车主 : CONFIRMED
+  pass -> db : ③ INSERT PENDING_PAYMENT
+  pass --> controller : reservationId, prepaidCents
 end
+deactivate pass
+controller --> 车主 : 预约凭证 / 冲突提示
+deactivate controller
+opt 预约已创建
+  车主 -> controller : ④ pay(reservationId, SUCCESS/FAILURE)
+  activate controller
+  controller -> pass : pay(key, id, request)
+  activate pass
+  pass -> db : ④ 写入预付流水
+  alt 预付成功
+    pass -> db : ⑤ UPDATE CONFIRMED
+    pass --> controller : CONFIRMED
+  else 预付失败
+    pass --> controller : PENDING_PAYMENT
+  end
+  deactivate pass
+  controller --> 车主 : ⑥ 预付结果
+  deactivate controller
+end
+note over pass,db : PassService 直接使用 JdbcTemplate；\n代码中没有独立 ReservationRepository 类。
 @enduml

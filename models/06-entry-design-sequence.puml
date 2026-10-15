@@ -1,35 +1,72 @@
 @startuml
 title UC-02 入场设计顺序图（AI-辅助）
 actor 收费员
-participant "AccessController" as controller
-participant "AccessService" as access
-database "parking_access" as db
-participant "PassClient" as pass
-participant "SpaceClient" as space
-收费员 -> controller : POST /api/v1/access/entries
-controller -> access : enter(request,key)
-note over access,db
-  独立锁事务持有请求键行锁，
-  同键并发重试等待原入场完成；
-  入场记录单独持久化以支持崩溃重试。
-  占位仍是跨服务调用，失败须补偿；
-  这不是分布式数据库事务。
-end note
-access -> db : INSERT ENTERING（唯一 active_plate/request_key）
-opt 预约位
-  access -> pass : consume(reservationId,sessionId)
-  pass --> access : spaceId, prepaidCents
+boundary AccessController as controller
+control AccessService as access
+entity AccessRepository as repo
+participant PassClient as pass
+participant SpaceClient as space
+
+收费员 -> controller : ① POST /api/v1/access/entries
+activate controller
+controller -> access : enter(request, key)
+activate access
+access -> repo : ② registerRequest(key, payload)
+activate repo
+repo --> access : 校验同键内容
+deactivate repo
+access -> repo : withRequestLock(key, 入场流程)
+activate repo
+note right of repo : 请求键行锁仅串行化同键请求；\n入场记录由独立连接提交
+repo -> access : enterLocked() 回调
+activate access
+access -> repo : ② insert(ENTERING, active_plate 唯一)
+activate repo
+repo --> access : parkingSessionId
+deactivate repo
+opt ③ 提供预约 ID
+  access -> pass : consume(reservationId, sessionId, key)
+  activate pass
+  pass --> access : 已核销预约及指定车位
+  deactivate pass
 end
-access -> space : available(type) / occupy(spaceId,sessionId)
-space --> access : 车位位置与 OCCUPIED
-access -> db : UPDATE PARKED
-access --> controller : SessionView
-controller --> 收费员 : parkingSessionId, 车位位置
-alt 入场失败
-  access -> space : release(spaceId,sessionId)
-  opt 已核销预约
-    access -> pass : release-consumption(reservationId,sessionId)
+access -> space : ④ available(type)
+activate space
+space --> access : 候选车位
+deactivate space
+access -> repo : chooseSpace(sessionId, 候选车位)
+access -> space : occupy(spaceId, sessionId, key)
+activate space
+alt 占位成功
+  space --> access : OCCUPIED、位置
+  deactivate space
+  access -> repo : ⑤ chooseSpace(); parked(sessionId)
+  activate repo
+  repo --> access : PARKED
+  deactivate repo
+else 占位失败或结果不确定
+  space --> access : 409 / 503 / 超时
+  deactivate space
+  opt 占位可能已成功
+    access -> space : release(spaceId, sessionId, key)
+    space --> access : 补偿结果
   end
-  access -> db : UPDATE ENTRY_FAILED（补偿成功时）
+  opt 预约已核销
+    access -> pass : release-consumption(reservationId, sessionId)
+    pass --> access : 恢复结果
+  end
+  access -> repo : entryFailed(sessionId) [补偿均完成]
 end
+access --> repo : ⑥ SessionView / 业务异常
+deactivate access
+repo --> access : 释放请求键锁并返回结果
+deactivate repo
+access --> controller : SessionView / 409 / 503
+controller --> 收费员 : 车位位置 / 可理解的失败信息
+deactivate access
+deactivate controller
+note over access,space
+  本图是对象级交互；跨服务不是一个数据库事务。
+  同键重试读取同一停车记录；补偿未完成时保留 ENTERING 供重试。
+end note
 @enduml

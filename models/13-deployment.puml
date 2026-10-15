@@ -2,30 +2,49 @@
 title Docker Compose 默认栈部署图（AI-辅助）
 top to bottom direction
 node "浏览器 / 烟测客户端" as client
-node "Windows Docker Desktop / Ubuntu VM\nDocker Compose 默认栈" {
-  node "frontend\nNginx :8080" as frontend
-  node "gateway\nJava 21 :18080" as gateway
-  node "业务容器 / Java 21" as services {
-    artifact "space-service :18081\naccess-service :18082\nbilling-service :18083\npass-service :18084\nanalytics-service :18085" as business
+node "Docker Compose 主机\nWindows Docker Desktop 或 Ubuntu VM" as host {
+  node "frontend 容器\nNginx :80（宿主 :8080）" as frontend {
+    artifact "Vue 构建产物" as dist
   }
-  database "MySQL 8.4 :3306\nparking_space / parking_access\nparking_billing / parking_pass\nparking_analytics\n各服务仅访问自有 schema" as mysql
-  database "Redis :6379\n已保存报表缓存" as redis
+  node "gateway 容器\nJava 21 :18080" as gateway {
+    artifact "gateway.jar" as gatewayJar
+  }
+  node "space-service 容器\nJava 21 :18081" as space {
+    artifact "space-service.jar" as spaceJar
+  }
+  node "access-service 容器\nJava 21 :18082" as access {
+    artifact "access-service.jar" as accessJar
+  }
+  node "billing-service 容器\nJava 21 :18083" as billing {
+    artifact "billing-service.jar" as billingJar
+  }
+  node "pass-service 容器\nJava 21 :18084" as pass {
+    artifact "pass-service.jar" as passJar
+  }
+  node "analytics-service 容器\nJava 21 :18085" as analytics {
+    artifact "analytics-service.jar" as analyticsJar
+  }
+  node "mysql 容器\nMySQL 8.4 :3306" as mysql {
+    database "parking_space" as dbSpace
+    database "parking_access" as dbAccess
+    database "parking_billing" as dbBilling
+    database "parking_pass" as dbPass
+    database "parking_analytics" as dbAnalytics
+  }
+  node "redis 容器\nRedis :6379" as redis
 }
-node "Nacos profile\n默认栈未启用 / profile 未验证" as nacos
 client --> frontend : HTTP :8080
-client --> gateway : 页面与 API :18080
+client --> gateway : HTTP :18080
 frontend --> gateway : /api/ 反向代理
-gateway --> frontend : / 与 /assets/ 静态路由
-gateway --> services : 固定服务地址
-services --> mysql : 独立账号
-services ..> redis : analytics 读穿缓存
-note bottom of services
-跨服务调用：access → pass / space / billing，
-pass → space（只读），analytics → access（只读）。
-MySQL 保存所有权威状态；Redis 不可用时回源。
-end note
-note bottom of nacos
-Windows 本机曾独立验证 Nacos 注册发现与配置热更新；
-此 Compose 默认栈未启用 Nacos，Sentinel 未接入。
-end note
+gateway --> space : HTTP 固定地址
+gateway --> access : HTTP 固定地址
+gateway --> billing : HTTP 固定地址
+gateway --> pass : HTTP 固定地址
+gateway --> analytics : HTTP 固定地址
+space --> dbSpace : JDBC / 专属账号
+access --> dbAccess : JDBC / 专属账号
+billing --> dbBilling : JDBC / 专属账号
+pass --> dbPass : JDBC / 专属账号
+analytics --> dbAnalytics : JDBC / 专属账号
+analytics ..> redis : 已保存报表缓存；故障回源 MySQL
 @enduml

@@ -5,7 +5,7 @@
 | 编号 | 用例 | 主参与者 | 主要服务 | 建议优先级 |
 |---|---|---|---|---|
 | UC-01 | 管理车位资源 | 停车场管理员 | space-service | 高 |
-| UC-02 | 登记车辆入场 | 收费员/模拟识别设备 | access-service、space-service | 高 |
+| UC-02 | 登记车辆入场 | 收费员（人工输入或本地模拟车牌） | access-service、space-service | 高 |
 | UC-03 | 计算停车费用 | 收费员/车主 | billing-service | 高 |
 | UC-04 | 模拟支付并申请发票 | 车主 | billing-service | 高 |
 | UC-05 | 预约车位并预付 | 车主 | pass-service、space-service | 高 |

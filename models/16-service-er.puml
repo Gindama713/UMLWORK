@@ -1,5 +1,5 @@
 @startuml
-title 服务独立数据库 ER 概念图（AI-辅助）
+title parking_space 关键表 ER 图（AI-辅助）
 hide methods
 package "parking_space" {
   entity parking_space {
@@ -32,6 +32,11 @@ package "parking_space" {
   parking_space ||--o| charger
   charger ||--o{ charging_session
 }
+@enduml
+
+@startuml
+title parking_access 关键表 ER 图（AI-辅助）
+hide methods
 package "parking_access" {
   entity access_request_key {
     * request_key : string <<PK>>
@@ -40,7 +45,7 @@ package "parking_access" {
     request_signature
   }
   entity exit_intent {
-    * parking_session_id : UUID <<PK>>
+    * parking_session_id : UUID <<PK, FK>>
     --
     exit_time
     exception_type
@@ -70,6 +75,11 @@ package "parking_access" {
   parking_session ||--o| exit_intent
   parking_session ||--o{ exit_exception
 }
+@enduml
+
+@startuml
+title parking_pass 关键表 ER 图（AI-辅助）
+hide methods
 package "parking_pass" {
   entity reservation {
     * reservation_id : UUID <<PK>>
@@ -102,6 +112,11 @@ package "parking_pass" {
   monthly_pass ||--o{ monthly_ledger
   reservation ||--o{ reservation_prepayment
 }
+@enduml
+
+@startuml
+title parking_billing 关键表 ER 图（AI-辅助）
+hide methods
 package "parking_billing" {
   entity bill {
     * bill_id : UUID <<PK>>
@@ -123,6 +138,11 @@ package "parking_billing" {
   bill ||--o{ payment
   bill ||--o{ invoice_request
 }
+@enduml
+
+@startuml
+title parking_analytics 关键表 ER 图（AI-辅助）
+hide methods
 package "parking_analytics" {
   entity traffic_report {
     * id : UUID <<PK>>
@@ -139,6 +159,7 @@ package "parking_analytics" {
   traffic_report ||--o{ traffic_bucket
 }
 note bottom
-跨 package 的相同 ID 只是接口引用，不建立跨库外键。
+五张图分别对应五个独立 schema；同名 ID 跨服务仅经接口引用，
+不建立跨库外键或跨库 JOIN。
 end note
 @enduml

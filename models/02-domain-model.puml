@@ -1,5 +1,6 @@
 @startuml
 title 领域概念与事实所有权（AI-辅助）
+left to right direction
 hide methods
 package "space-service" {
   class ParkingSpace {
@@ -71,12 +72,13 @@ ParkingSpace "1" -- "0..*" ParkingSession : spaceId
 ParkingSpace "1" -- "0..1" Charger : spaceId
 Charger "1" -- "0..*" ChargingSession : chargerId
 ParkingSession "1" -- "0..*" ChargingSession : parkingSessionId
-Reservation "0..1" ..> ParkingSession : 核销时绑定 ID
-MonthlyPass "0..1" ..> ParkingSession : 权益快照
-ParkingSession "1" ..> "0..1" Bill : parkingSessionId
+Reservation "0..1" -- "0..1" ParkingSession : 核销时关联
+MonthlyPass "0..1" -- "0..*" ParkingSession : 权益快照
+ParkingSession "1" -- "0..1" Bill : 结算账单
 Bill "1" -- "0..*" Payment : billId
 Bill "1" -- "0..*" InvoiceRequest : billId
 note bottom
-虚线关联只表示跨服务 ID/DTO，不表示跨库外键。
+跨服务实线是领域概念关联；实现仅保存 ID/DTO 快照，
+不建立跨库外键或跨库 JOIN。
 end note
 @enduml
