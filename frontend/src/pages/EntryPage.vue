@@ -17,8 +17,19 @@ const {
   search,
   dateTime,
   enter,
+  recognizePlate,
   locate,
 } = props.workspace
+
+function uploadPlate(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (file) recognizePlate(file)
+}
+function selectType(type) {
+  if (entry.spaceType !== type) entry.preferredSpaceId = ''
+  entry.spaceType = type
+}
 </script>
 
 <template>
@@ -30,7 +41,7 @@ const {
             <span class="section-kicker">01 / CHECK IN</span>
             <h2>车辆入场登记</h2>
           </div>
-          <span class="small-badge">模拟识别</span>
+          <span class="small-badge">人工确认入场</span>
         </div>
         <label class="field-label" for="entry-plate">车牌号码</label
         ><el-input
@@ -41,6 +52,13 @@ const {
           maxlength="12"
           @keyup.enter="enter"
         />
+        <div class="plate-recognition">
+          <label class="plate-upload">
+            <AppIcon name="search" /> 上传车牌照片辅助识别
+            <input type="file" accept="image/jpeg,image/png" :disabled="busy" @change="uploadPlate" />
+          </label>
+          <p>图片会发往第三方识别服务。仅回填候选车牌，请核对后再登记；服务不可用时可直接手动输入。</p>
+        </div>
         <span class="field-label">车位类型</span>
         <div class="type-picker">
           <button
@@ -48,10 +66,14 @@ const {
             :key="type"
             :class="{ selected: entry.spaceType === type }"
             :aria-pressed="entry.spaceType === type"
-            @click="entry.spaceType = type"
+            @click="selectType(type)"
           >
             <AppIcon :name="typeIcon(type)" /><span>{{ title }}</span>
           </button>
+        </div>
+        <div v-if="entry.preferredSpaceId" class="selected-space-hint">
+          已选择推荐车位。入场前会再次核验可用状态；若已被占用，请刷新推荐。
+          <button type="button" class="text-button" @click="entry.preferredSpaceId = ''">取消指定</button>
         </div>
         <label v-if="entry.spaceType === 'RESERVATION'" class="stacked-field"
           >预约凭证<el-input v-model="entry.reservationId" placeholder="已确认预约的 ID"

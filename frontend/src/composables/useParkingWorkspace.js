@@ -65,6 +65,7 @@ export function useParkingWorkspace() {
   const session = ref(null)
   const bill = ref(null)
   const report = ref(null)
+  const trafficInsight = ref(null)
   const reservation = ref(null)
   const monthly = ref(null)
   const monthlyLedger = ref([])
@@ -100,7 +101,7 @@ export function useParkingWorkspace() {
   )
   const typeIcon = (type) =>
     ({ NORMAL: 'parking', ACCESSIBLE: 'accessible', CHARGING: 'bolt', RESERVATION: 'ticket' })[type]
-  const entry = reactive({ plateNumber: '', spaceType: 'NORMAL', reservationId: '', entryTime: '' })
+  const entry = reactive({ plateNumber: '', spaceType: 'NORMAL', reservationId: '', entryTime: '', preferredSpaceId: '' })
   const search = reactive({ plateNumber: '' })
   const exit = reactive({ sessionId: '', exitTime: '', exceptionType: 'NONE', operator: '' })
   const reserve = reactive({ plateNumber: '', spaceId: '', startTime: '', endTime: '' })
@@ -121,6 +122,10 @@ export function useParkingWorkspace() {
     status: 'OUT_OF_SERVICE',
   })
   const invoice = reactive({ billId: '', invoiceTitle: '', taxNumber: '' })
+  const estimateForm = reactive({ entryTime: '', exitTime: '' })
+  const estimateResult = ref(null)
+  const recommendForm = reactive({ terminal: 'T1', type: 'NORMAL' })
+  const recommendations = ref([])
   const analytics = reactive({ from: '', to: '', granularity: 'HOUR' })
   const output = ref('操作结果会显示在这里。')
 
@@ -244,6 +249,7 @@ export function useParkingWorkspace() {
       entry.reservationId = reservation.value.reservationId
       entry.plateNumber = reserve.plateNumber
       entry.spaceType = 'RESERVATION'
+      entry.preferredSpaceId = ''
       return reservation.value
     })
   }
@@ -312,11 +318,24 @@ export function useParkingWorkspace() {
         spaceType: entry.spaceType,
         reservationId:
           entry.spaceType === 'RESERVATION' ? entry.reservationId || undefined : undefined,
+        preferredSpaceId: entry.spaceType === 'RESERVATION' ? undefined : entry.preferredSpaceId || undefined,
         entryTime: iso(entry.entryTime),
       })
+      entry.preferredSpaceId = ''
       await selectSession(data)
       await loadResources()
       return session.value
+    })
+  }
+  async function recognizePlate(file) {
+    if (!file) return
+    await action(async () => {
+      const image = new FormData()
+      image.append('image', file)
+      const candidate = await api('/api/v1/access/plate-recognitions', 'POST', image)
+      if (!candidate.plateNumber) throw new Error('图片中未找到唯一清晰车牌，请手动输入')
+      entry.plateNumber = candidate.plateNumber
+      return { ...candidate, note: '请核对车牌后再登记入场' }
     })
   }
   async function locate() {
@@ -432,6 +451,22 @@ export function useParkingWorkspace() {
       return invoiceResult.value
     })
   }
+  async function previewEstimate() {
+    await action(async () => {
+      estimateResult.value = await api('/api/v1/billing/parking-estimates', 'POST', {
+        entryTime: iso(estimateForm.entryTime),
+        exitTime: iso(estimateForm.exitTime),
+      })
+      return estimateResult.value
+    })
+  }
+  async function recommendSpaces() {
+    await action(async () => {
+      const params = new URLSearchParams(recommendForm)
+      recommendations.value = await api(`/api/v1/spaces/recommendations?${params}`)
+      return recommendations.value
+    })
+  }
   async function traffic() {
     await action(async () => {
       const params = new URLSearchParams({
@@ -440,11 +475,23 @@ export function useParkingWorkspace() {
         granularity: analytics.granularity,
       })
       report.value = await api(`/api/v1/analytics/traffic?${params}`)
+      trafficInsight.value = null
       return report.value
+    })
+  }
+  async function explainTraffic() {
+    await action(async () => {
+      if (!report.value?.reportId) throw new Error('请先生成车流报表')
+      const id = report.value.reportId
+      trafficInsight.value = await api(`/api/v1/analytics/traffic-reports/${id}/ai-insight`, 'POST')
+      if (trafficInsight.value.reportId !== id) throw new Error('AI 解读与当前报表不匹配')
+      return trafficInsight.value
     })
   }
   onMounted(async () => {
     const now = new Date()
+    estimateForm.entryTime = localInput(now)
+    estimateForm.exitTime = localInput(new Date(now.getTime() + 2 * 60 * 60 * 1000))
     analytics.from = localInput(new Date(now.getTime() - 24 * 60 * 60 * 1000))
     analytics.to = localInput(now)
     await refreshOverview()
@@ -464,6 +511,7 @@ export function useParkingWorkspace() {
     session,
     bill,
     report,
+    trafficInsight,
     reservation,
     monthly,
     monthlyLedger,
@@ -491,6 +539,10 @@ export function useParkingWorkspace() {
     charge,
     adminSpace,
     invoice,
+    estimateForm,
+    estimateResult,
+    recommendForm,
+    recommendations,
     analytics,
     output,
     money,
@@ -508,6 +560,7 @@ export function useParkingWorkspace() {
     createPass,
     refreshPass,
     enter,
+    recognizePlate,
     locate,
     findFromOverview,
     startCharge,
@@ -516,6 +569,9 @@ export function useParkingWorkspace() {
     requestExit,
     completeExit,
     applyInvoice,
+    previewEstimate,
+    recommendSpaces,
     traffic,
+    explainTraffic,
   }
 }

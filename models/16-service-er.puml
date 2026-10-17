@@ -9,6 +9,14 @@ package "parking_space" {
     status
     parking_session_id
   }
+  entity zone_walk_time {
+    * floor : string <<PK>>
+    * zone_code : string <<PK>>
+    * terminal_code : string <<PK>>
+    --
+    walking_minutes
+    data_version
+  }
   entity charger {
     * id : UUID <<PK>>
     --
@@ -31,6 +39,10 @@ package "parking_space" {
   parking_space ||--o{ charging_settlement
   parking_space ||--o| charger
   charger ||--o{ charging_session
+  note right of zone_walk_time
+    演示步行时间；由相同 floor + zone_code 与车位匹配。
+    当前没有数据库外键，避免误画为物理关联。
+  end note
 }
 @enduml
 

@@ -5,6 +5,8 @@ skinparam classAttributeIconSize 0
 package "access-service" {
   class AccessController {
     -service: AccessService
+    -recognition: PlateRecognitionService
+    ~recognize(image: MultipartFile): Envelope<PlateCandidate>
     ~enter(request: EntryRequest, key: String): Envelope<SessionView>
     ~locate(plateNumber: String): Envelope<SessionView>
     ~requestExit(sessionId: String, request: ExitRequest, key: String): Envelope<ExitView>
@@ -22,6 +24,15 @@ package "access-service" {
     ~completeExit(id: String, input: CompleteRequest, key: String): CompleteView
     ~exceptions(id: String): List<ExceptionView>
   }
+  class PlateRecognitionService {
+    -endpoint: URI
+    -model: String
+    -apiKey: String
+    -enabled: boolean
+    -maxBytes: int
+    -timeout: Duration
+    ~recognize(image: MultipartFile): PlateCandidate
+  }
   class AccessRepository {
     -jdbc: JdbcTemplate
     -mapper: RowMapper<SessionRow>
@@ -34,6 +45,7 @@ package "access-service" {
     ~closed(id: String): void
   }
   AccessController "1" --> "1" AccessService : service
+  AccessController "1" --> "1" PlateRecognitionService : recognition
   AccessService "1" --> "1" AccessRepository : repo
   note right of AccessService
     Feign 客户端字段保留在类中；
@@ -51,6 +63,7 @@ package "billing-service" {
     ~createBill(request: BillRequest, key: String, http: HttpServletRequest): ApiResponse<BillView>
     ~internalPay(billId: String, request: PaymentRequest, key: String, http: HttpServletRequest): ApiResponse<PaymentView>
     ~invoice(billId: String, request: InvoiceRequest, key: String, http: HttpServletRequest): ApiResponse<InvoiceView>
+    ~estimate(request: EstimateRequest, http: HttpServletRequest): ApiResponse<ParkingEstimate>
   }
   class BillingService {
     -jdbc: JdbcTemplate
@@ -59,6 +72,7 @@ package "billing-service" {
     ~createBill(request: BillRequest, key: String): BillView
     ~pay(billId: String, request: PaymentRequest, key: String, allowMonthly: boolean): PaymentView
     ~requestInvoice(billId: String, request: InvoiceRequest, key: String): InvoiceView
+    ~estimate(request: EstimateRequest): ParkingEstimate
   }
   class ParkingPricing {
     -currentRates: Supplier<PricingProperties>
@@ -112,6 +126,7 @@ package "space-service" {
     +occupy(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
     +release(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<SpaceView>
     +settle(spaceId: String, key: String, request: OccupancyRequest): ApiResponse<ChargingFeeView>
+    +recommendations(terminal: String, type: String): ApiResponse<List<RecommendationView>>
   }
   class ChargingController {
     -operations: SpaceOperations
@@ -124,12 +139,14 @@ package "space-service" {
     -idempotency: Idempotency
     -rateVersion: String
     -rateCentsPerKwh: long
+    -recommendationLimit: int
     +occupy(spaceId: String, parkingSessionId: String, key: String): SpaceView
     +release(spaceId: String, parkingSessionId: String, key: String): SpaceView
     +settle(spaceId: String, parkingSessionId: String, key: String): ChargingFeeView
     +startCharging(chargerId: String, parkingSessionId: String, startTime: String, key: String): ChargingView
     +finishCharging(chargingId: String, endTime: String, energyKwh: BigDecimal, key: String): ChargingView
     +activeCharging(parkingSessionId: String): List<ChargingView>
+    +recommendations(terminal: String, type: String): List<RecommendationView>
   }
   class Idempotency {
     -jdbc: JdbcTemplate
@@ -189,9 +206,21 @@ skinparam classAttributeIconSize 0
 package "analytics-service" {
   class TrafficController {
     -service: TrafficService
+    -insights: TrafficInsightService
     ~traffic(from: OffsetDateTime, to: OffsetDateTime, granularity: String): Envelope<TrafficReport>
     ~preview(from: OffsetDateTime, to: OffsetDateTime, granularity: String): Envelope<TrafficReport>
     ~saved(id: String): Envelope<TrafficReport>
+    ~insight(id: String): Envelope<TrafficInsight>
+  }
+  class TrafficInsightService {
+    -reports: TrafficService
+    -client: HttpClient
+    -endpoint: URI
+    -model: String
+    -apiKey: String
+    -enabled: boolean
+    -timeout: Duration
+    ~generate(reportId: String): TrafficInsight
   }
   class TrafficService {
     -access: AccessTrafficClient
@@ -224,7 +253,17 @@ package "analytics-service" {
     -peakBucket: TrafficBucket
     -totalEntries: int
   }
+  class TrafficInsight <<record>> {
+    -reportId: String
+    -source: String
+    -model: String
+    -summary: String
+    -actions: List<String>
+  }
   TrafficController "1" --> "1" TrafficService : service
+  TrafficController "1" --> "1" TrafficInsightService : insights
+  TrafficInsightService "1" --> "1" TrafficService : saved report only
+  TrafficInsightService ..> TrafficInsight : creates advisory
   TrafficService "1" --> "1" AccessTrafficClient : Feign, read only
   TrafficService "1" --> "1" SavedReportCache : saved reports only
   TrafficReport "1" --> "0..*" TrafficBucket : buckets

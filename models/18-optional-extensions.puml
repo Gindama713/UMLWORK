@@ -1,0 +1,149 @@
+@startuml
+title 可选扩展用例（AI-辅助；UC-01～UC-10 原图保持独立）
+left to right direction
+actor 车主
+actor 收费员
+actor "外部图像识别服务" as Vision
+rectangle "机场智慧停车与出行服务平台" {
+  usecase "UC-02 登记车辆入场" as UC02
+  usecase "EX-01 图片辅助识别车牌" as EX01
+  usecase "EX-02 预估普通停车费" as EX02
+  usecase "EX-03 推荐可用车位" as EX03
+}
+收费员 -- EX01
+车主 -- EX02
+车主 -- EX03
+Vision -- EX01
+EX01 ..> UC02 : <<extend>>
+@enduml
+
+
+@startuml
+title EX-01 图片识别与人工确认顺序图（AI-辅助）
+actor 收费员
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "access-service" as Access
+participant "DeepSeek API" as Vision
+收费员 -> UI : 上传 JPEG/PNG
+activate UI
+UI -> GW : POST /access/plate-recognitions
+activate GW
+GW -> Access : 转发图片
+activate Access
+alt 图片无效
+  Access --> GW : 400 INVALID_ARGUMENT
+else 未启用或识别服务故障
+  Access --> GW : 503 DEPENDENCY_UNAVAILABLE
+else 已启用且服务可用
+  Access -> Vision : HTTPS 图像识别（密钥仅在服务端）
+  activate Vision
+  Vision --> Access : 单个候选车牌或 NONE
+  deactivate Vision
+  Access --> GW : 200 候选（可能为空）
+end
+deactivate Access
+GW --> UI : 结果；失败可人工输入
+deactivate GW
+UI --> 收费员 : 回填可编辑候选
+收费员 -> UI : 人工核对并点击登记
+UI -> GW : POST /access/entries（原 UC-02）
+GW --> UI : 按原入场占位协议返回
+deactivate UI
+@enduml
+
+@startuml
+title EX-02 只读停车费预估顺序图（AI-辅助）
+actor 车主
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "billing-service" as Billing
+车主 -> UI : 输入预计入场与离场时刻
+UI -> GW : POST /billing/parking-estimates
+activate GW
+GW -> Billing : 转发时间
+activate Billing
+Billing -> Billing : 复用 ParkingPricing.calculate
+note right of Billing : 不创建 Bill / Payment；\n只计算普通停车基础费。
+Billing --> GW : 金额、费率版本、分日明细
+deactivate Billing
+GW --> UI : 展示估计与免责说明
+deactivate GW
+UI --> 车主 : 实际费用以结算账单为准
+@enduml
+
+@startuml
+title EX-03 推荐与精确占位竞争顺序图（AI-辅助）
+actor 车主
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "space-service" as Space
+database "parking_space\nspace 自有库" as DB
+participant "access-service" as Access
+车主 -> UI : 选择航站楼和车位类型
+UI -> GW : GET /spaces/recommendations
+GW -> Space : 查询候选
+activate Space
+Space -> DB : 查询可用车位与演示步行时间
+DB --> Space : 按步行时间排序
+Space --> GW : 最多 3 个只读候选
+deactivate Space
+GW --> UI : 候选、理由、数据版本
+车主 -> UI : 选择车位并确认入场
+UI -> GW : POST /access/entries(preferredSpaceId)
+GW -> Access : 幂等入场请求
+activate Access
+Access -> Space : 查询可用并原子 occupy
+alt 候选仍可用
+  Space --> Access : OCCUPIED
+  Access --> GW : PARKED
+else 被其他车辆先占用
+  Space --> Access : SPACE_UNAVAILABLE
+  Access --> GW : 409 SPACE_UNAVAILABLE；不改派其他车位
+end
+deactivate Access
+GW --> UI : 成功或提示刷新推荐
+@enduml
+
+@startuml
+title EX-04 AI 报表解读可选用例（AI-辅助）
+left to right direction
+actor 运营人员
+actor "外部 AI 服务" as AI
+rectangle "机场智慧停车与出行服务平台" {
+  usecase "UC-10 统计车流报表" as UC10
+  usecase "EX-04 AI 解读保存报表" as EX04
+}
+运营人员 -- EX04
+AI -- EX04
+EX04 ..> UC10 : <<extend>>
+@enduml
+
+@startuml
+title EX-04 已保存车流报表的 AI 解读顺序图（AI-辅助）
+actor 运营人员
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "analytics-service" as Analytics
+participant "DeepSeek API" as AI
+运营人员 -> UI : 查看已生成报表并点击 AI 解读
+UI -> GW : POST /analytics/traffic-reports/{id}/ai-insight
+GW -> Analytics : 转发报表 ID
+activate Analytics
+Analytics -> Analytics : saved(id) 读取不变快照
+note right of Analytics : Redis 命中或回源本服务 MySQL；\n仅发送汇总计数，不发送车牌或停车记录。
+alt 报表不存在
+  Analytics --> GW : 404 NOT_FOUND
+else AI 未启用或服务故障
+  Analytics --> GW : 503 DEPENDENCY_UNAVAILABLE
+else AI 可用
+  Analytics -> AI : HTTPS 汇总时段/高峰计数
+  activate AI
+  AI --> Analytics : JSON 解读与两条建议
+  deactivate AI
+  Analytics --> GW : AI_ADVISORY 文本（不修改报表）
+end
+deactivate Analytics
+GW --> UI : 展示建议或错误；原图表继续可用
+UI --> 运营人员 : 人工核对后再决策
+@enduml

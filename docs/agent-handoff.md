@@ -1,6 +1,30 @@
-# Agent 交接记录（2026-10-14，当前可接手）
+# Agent 交接记录（2026-10-17，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-17：UC-01/02/10 演示容量与车辆场景扩充
+
+- **改动与模型**：`space-service/data.sql` 在既有楼层/区域追加 32 个幂等种子位和 6 个充电桩，现为普通 30、无障碍 7、充电 12、预约 14，共 63 位、12 桩；保留原 2 个停用示例。既有 ID、车位状态及人工数据不会被种子语句覆盖。`SpaceOperationsTest` 新增种子类型/配桩校验及 12 辆车分别占位、竞争拒绝、全部释放的测试。`scripts/seed-demo-traffic.ps1` 默认可造 24 条已完成停车和编号 101～108 的在场车，数量参数分别可调到 60 和 16；从真实可用普通车位中轮换精确占位，并用变更前后同一时间下界的车流预览核对增量。README、需求映射、报告骨架和扩展候选记录已同步。没有新接口、表结构、状态、费率、服务依赖或 UML 元素；图 01/02/11/15/16 的业务结构不变。
+- **自动验证**：设置 Java 21 后，`./mvnw.cmd -q test package` 退出 0，Surefire XML 共 **33 条、0 失败/错误**；其中 space 单模块测试单独运行退出 0。PowerShell 解析 `scripts/seed-demo-traffic.ps1` 无语法错误，`git diff --check` 退出 0。
+- **真实 Docker/MySQL/页面**：重建 space-service 后容器 healthy；网关 GET `/api/v1/spaces` 返回 63 个固定种子位，四类数为 30/7/12/14，GET `/api/v1/spaces/chargers` 返回 12 个固定充电桩。先运行扩容前的脚本版本追加 24 条 CLOSED 和 6 条新 PARKED（另 2 条原已在场），车流 36；随后修正历史车位轮换，再运行 `-ClosedCount 12 -IncludeActive -ActiveCount 12`，得到 12 条 CLOSED，分布在 A-009～A-014、E-001～E-006，及 4 条新 PARKED 在 E-001～E-004；脚本输出 `TRAFFIC last24h=52; added=16; buckets=25`。浏览器刷新总览显示 63 位、49 可用、12 占用、2 停用、12 桩、近 24 小时 52 条模拟入场；车流图读屏最高时段 10 条。原有 `scripts/smoke-gateway.ps1` 再次退出 0，冻结、出账、支付恢复、释放、发票与车流断言均 PASS；`scripts/smoke-extensions.ps1` 亦退出 0，预估 1000 分、推荐 A-009、指定占位同键重试与第二辆竞争 409 均通过。
+- **补充车辆断言与重启验证**：脚本再补“已出场寻车返回 404 NOT_FOUND”和“在场寻车返回同一会话/车位”。运行 `-ClosedCount 4 -IncludeActive -ActiveCount 13` 退出 0，4 辆关闭、1 辆新在场，输出 `TRAFFIC last24h=59; added=5; buckets=25`。重启 space-service 后从网关再次读取到 63 位，其中 48 可用、13 占用、2 停用，证明本次种子 SQL 重跑没有把占位状态清零。
+- **数据边界与后续**：最初 24 条 CLOSED 批次使用同一个 A-003 车位和回填的历史时刻，部分时间区间可能重叠；它们是接口压力演示记录，**不能作为物理车位历史分配正确性的证据**，也不要把当前 52 条模拟入场写成真实机场客流。脚本已改用车位轮换和最小并行容量检查，只保证**同一新批次内部**的回填时段不共用车位；现有接口不提供跨批次历史车位时间线，不能用这份脚本证明整个历史库无时段冲突。不直接改写或删除既有停车历史。`docs/feature-roadmap.md` 列出预约时间轴、资源维护留痕、报表对比/导出与车牌样本评测四项未实现候选。课程正式截图仍需负责人本人采集，本次没有推送远端。
+
+## 2026-10-17：EX-04 已保存车流报表的可选 AI 解读
+
+- **用例与文件**：UC-10 必做统计不变，新增独立可选 EX-04。先在 `docs/api-contract.md` 冻结 `POST /api/v1/analytics/traffic-reports/{id}/ai-insight`，再新增 `TrafficInsightService`、`TrafficInsight` DTO、`TrafficController` 路由及 `application.yml` 配置；前端 `AnalyticsPage.vue`、`useParkingWorkspace.js`、`polish.css` 增加按需生成及建议卡。`docker-compose.yml` 传入配置开关与密钥，`.env.example` 只给空密钥示例；不引入新依赖。
+- **事实与失败边界**：只读本服务保存的报表，最多发送八个非零时段的汇总计数；不发送车牌、停车记录或库凭据，不写报表、车位、账单或支付。返回 `source=AI_ADVISORY`、模型名、摘要和两条建议；页面明确需要人工核对。不存在的报表为 404 `NOT_FOUND`；默认关闭、无密钥、网络或响应错误均为 503 `DEPENDENCY_UNAVAILABLE`，原报表继续可用。没有新增表、状态、金额规则、跨库访问或微服务。可通过本机未提交 `.env` 设置 `ANALYTICS_AI_ENABLED=true`、`DEEPSEEK_API_KEY`；勿把密钥写入仓库。
+- **测试与真实联调**：`./mvnw.cmd test -q` 退出 0，Surefire XML 合计 **31 条、0 失败/错误**；`npm test` 5/5，`npm run build` 成功（原有 ECharts 分包体积提示）；假 HTTP 提供方测试核查出站请求只有聚合统计、合法 JSON、停机/非法输出和关闭分支。Windows Docker 重建 analytics/frontend 后，经网关为已保存报表 `35baf4d4-369e-408f-b624-ea64a8dc3bbc` 调真实 DeepSeek 返回 HTTP 200、`code=OK`、`source=AI_ADVISORY`、`model=deepseek-flash`、两条建议；该报表总入场 5、时段桶 25。浏览器重新生成报表 `e34ec75c-572e-4daf-8afa-aa5f6423992a`，显示 5 条入场与高峰图，点击 AI 解读后显示摘要、两条建议和人工核对说明。`pwsh -NoProfile -File scripts/smoke-gateway.ps1` 再次退出 0，包含冻结/出账/失败支付/恢复/释放/发票/只读车流的 PASS 输出。本次只验证链路与失败语义，未衡量模型建议准确率，也未用真实运营样本评估。
+- **模型与运行**：`models/13-deployment.puml` 的 DeepSeek 可选云节点增加 analytics 连接；`15-design-classes.puml` 加入真实 analytics 类/DTO；`18-optional-extensions.puml` 单独补 EX-04 用例与服务级顺序图。全源 PlantUML 1.2024.3 检查/重渲染退出 0，共 19 源、34 PNG；打开 EX-04 两张图与类图核对排版。启动参见 README 与 Docker 配置；关闭开关时原 UC-10 报表不受影响。课程正式运行截图仍须负责人本人在其机器上采集；没有推送远端。
+
+## 2026-10-17：三项可选扩展（EX-01～EX-03；UC-01～UC-10 不变）
+
+- **实现与文件**：EX-01 在 `access-service` 新增 `PlateRecognitionService` 与 `POST /api/v1/access/plate-recognitions`；前端入场页仅将候选回填可编辑输入框，人工确认后沿用 UC-02。EX-02 在 `billing-service` 复用 `ParkingPricing.calculate` 新增只读 `POST /api/v1/billing/parking-estimates`，前端结算页显示费率版本与分日明细。EX-03 在 `space-service` 新增只读 `GET /api/v1/spaces/recommendations`，前端车位页按 `RECOMMENDATION_MAX_RESULTS`（默认 3）显示解释性候选；`access-service` 的原入场接口新增可选 `preferredSpaceId`，由原有原子占位判定，冲突时不改派。改动集中在三个权威服务、对应测试、三处页面及共享 composable/API 客户端；新增 `scripts/smoke-extensions.ps1`。接口字段与失败语义先写入 `docs/api-contract.md`，业务费率与原状态未改，未增加依赖或微服务。
+- **表/状态/安全**：space 自有 schema 增量新增 `zone_walk_time`，data.sql 幂等插入 T1/T2 各区域演示步行时间，未建跨库表或跨服务外键。图片不在本项目持久化；JPEG/PNG 内容头、大小和配置开关在服务端检查，第三方响应只作候选，不可自动登记。启用依赖运行环境的 `PLATE_RECOGNITION_ENABLED=true`、`DEEPSEEK_API_KEY`；仓库示例 `.env.example` 的密钥留空，Nginx 请求体上限 4 MB。Docker 的开关与密钥已写入本机 Git 忽略的 `.env`，便于本机重建；密钥值没有写入源码、受版本控制文档或测试日志。已有停车、账单、支付状态和整数分语义未改。
+- **本机可复现验证**：设置 `JAVA_HOME` 为本机 Corretto 21 后，`./mvnw.cmd test -q` 退出 0；八份 Surefire XML 共 30 条、0 失败/错误。`npm test` 5 条、0 失败；获准在沙箱外运行 `npm run build` 退出 0（ECharts 562 kB 分包体积提示，不影响构建）。`java -jar <本机 PlantUML 1.2024.3> -checkonly 'models/*.puml'` 退出 0；13/15/16/18 图重新渲染，目录现为 19 源、32 PNG，已打开核心改动图核对。曾有前一轮已撤销测试留下的过期 Surefire XML，已仅清除该两份构建报告；当前 XML 汇总为 `tests=30 failures=0 errors=0`。随后在 `SpaceOperationsTest` 显式设置 `parking.recommendation.max-results=2`，单模块 6 条测试仍全绿，证明推荐条数从配置读取；全量运行的其余 24 条未改。
+- **真实 Docker/MySQL/网关**：只重建 space、access、billing、frontend 四容器；`docker compose ps` 显示这三个 Java 容器及 gateway、MySQL 等均 healthy。经 `127.0.0.1:18080`：预估 2026-10-01 08:00～10:00 返回 `OK:1000:v1-demo-20260925`；T1/NORMAL 推荐三位，首位 A-003；`pwsh -NoProfile -File scripts/smoke-extensions.ps1` 退出 0，精确占 A-003、同键重试同 session、第二辆指定同位返回 409 `SPACE_UNAVAILABLE`，原车辆最终 `CLOSED` 并释放；最终重建 space/frontend 后重跑扩展烟测仍三项 PASS（新会话 `c817a435-7fdb-42b0-991e-8594d62c0426`）；`scripts/smoke-gateway.ps1` 退出 0，12 项 PASS，停车 1000 + 充电 300 = 1300 分，发票及只读车流通过。图片上传先用内容为 JPEG 却扩展名为 png 的旧截图配 `image/png` 试出 400（验证签名检查）；改传 `image/jpeg` 后经真实 DeepSeek API 返回 `OK`、候选 `苏A92802`。这是演示界面截图中的车牌，不等同于真实车辆照片准确率测试。
+- **界面与模型**：浏览器在当前容器上点选“车位资源→查找推荐”，看到 A-003/A-004/A-005 及演示步行分钟；“选择此车位入场”跳转后出现指定车位提示；结算页试算显示 ¥10.00、费率版本及分日明细。无新登录/权限能力。模型 13 部署图画可选外部服务，15 类图同步真实成员，16 ER 图新增 zone_walk_time，18 独立画扩展用例及三张顺序图；必做总体用例图 01 仍保留 UC-01～UC-10。
+- **未解决/接手事项**：至少约 20 张有合法使用权的真实车辆照片需按清晰、遮挡、模糊、多车牌等场景人工标注并记录准确识别/拒识/误识，现无此证据；因此报告不得写具体识别率或称“真实车牌照片准确率已验证”。本机 Docker 后续重建会从已忽略的私有 `.env` 读取启用标志和密钥；在其他机器部署须自行配置，缺失时回到默认关闭，人工输入照常可用。课程本人截图、录屏和指定原创章节仍由姜苏豪完成。没有推送远端；原有三个未跟踪提示词文件未改。
 
 ## 2026-10-15：课程 UML 图纸规范性修订
 

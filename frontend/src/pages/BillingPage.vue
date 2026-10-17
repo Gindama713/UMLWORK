@@ -16,16 +16,32 @@ const {
   search,
   exit,
   invoice,
+  estimateForm,
+  estimateResult,
   money,
   dateTime,
   locate,
   requestExit,
   completeExit,
   applyInvoice,
+  previewEstimate,
 } = props.workspace
 </script>
 
 <template>
+  <section class="panel estimate-panel">
+    <div class="panel-heading"><div><span class="section-kicker">BEFORE YOU PARK</span><h2>停车费预估</h2></div><AppIcon name="clock" /></div>
+    <div class="estimate-fields">
+      <label class="stacked-field">预计入场<input v-model="estimateForm.entryTime" type="datetime-local" step="0.001" /></label>
+      <label class="stacked-field">预计离场<input v-model="estimateForm.exitTime" type="datetime-local" step="0.001" /></label>
+      <el-button :loading="busy" :disabled="!estimateForm.entryTime || !estimateForm.exitTime" @click="previewEstimate">计算预估</el-button>
+    </div>
+    <div v-if="estimateResult" class="estimate-result">
+      <div><span>普通停车基础费</span><strong>{{ money(estimateResult.amountDueCents) }}</strong><small>费率 {{ estimateResult.rateVersion }}</small></div>
+      <ul><li v-for="(item, index) in estimateResult.feeItems" :key="index">{{ item.detail }} · {{ money(item.amountCents) }}</li></ul>
+    </div>
+    <p class="form-note">仅预估普通停车基础费，不生成账单；实际金额以真实时刻、权益、充电及异常费用结算为准。</p>
+  </section>
   <div class="checkout-steps" aria-label="结算进度">
     <div
       v-for="(title, index) in ['确认车辆', '核对账单', '支付完成', '车位释放']"

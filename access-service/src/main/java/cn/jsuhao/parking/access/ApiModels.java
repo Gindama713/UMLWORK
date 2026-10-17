@@ -14,7 +14,12 @@ final class ApiModels {
         }
     }
 
-    record EntryRequest(String plateNumber, String spaceType, String reservationId, OffsetDateTime entryTime) {}
+    record EntryRequest(String plateNumber, String spaceType, String reservationId,
+            OffsetDateTime entryTime, String preferredSpaceId) {
+        EntryRequest(String plateNumber, String spaceType, String reservationId, OffsetDateTime entryTime) {
+            this(plateNumber, spaceType, reservationId, entryTime, null);
+        }
+    }
     record ExitRequest(OffsetDateTime exitTime, String exceptionType, String operator) {}
     record CompleteRequest(String simulatedResult) {}
     record SessionRef(String parkingSessionId) {}

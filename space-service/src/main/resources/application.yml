@@ -29,6 +29,8 @@ management:
         include: health,info
 
 parking:
+  recommendation:
+    max-results: ${RECOMMENDATION_MAX_RESULTS:3}
   charging:
     rate-version: ${CHARGING_RATE_VERSION:2026-09-demo-v1}
     rate-cents-per-kwh: ${CHARGING_RATE_CENTS_PER_KWH:150}

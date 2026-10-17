@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:billing_test;MODE=MySQL;DB_CLOSE_DELAY=-1",
@@ -18,6 +19,23 @@ import org.springframework.boot.test.context.SpringBootTest;
 })
 class BillingServiceTest {
     @Autowired BillingService service;
+    @Autowired JdbcTemplate jdbc;
+
+    @Test
+    void estimateUsesPricingWithoutCreatingBillOrPayment() {
+        Integer billsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM bill", Integer.class);
+        Integer paymentsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM payment", Integer.class);
+        var estimate = service.estimate(new EstimateRequest(
+                OffsetDateTime.parse("2026-10-01T08:00:00+08:00"),
+                OffsetDateTime.parse("2026-10-01T10:00:00+08:00")));
+        assertEquals(1000L, estimate.amountDueCents());
+        assertEquals(1000L, estimate.parkingBaseCents());
+        assertEquals(billsBefore, jdbc.queryForObject("SELECT COUNT(*) FROM bill", Integer.class));
+        assertEquals(paymentsBefore, jdbc.queryForObject("SELECT COUNT(*) FROM payment", Integer.class));
+        assertThrows(IllegalArgumentException.class, () -> service.estimate(new EstimateRequest(
+                OffsetDateTime.parse("2026-10-01T08:00:00+08:00"),
+                OffsetDateTime.parse("2026-10-01T08:00:00+08:00"))));
+    }
 
     @Test
     void billSnapshotPaymentRetryAndInvoiceStayConsistent() {

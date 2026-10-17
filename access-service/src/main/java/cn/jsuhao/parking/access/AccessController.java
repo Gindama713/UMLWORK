@@ -21,6 +21,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -28,9 +32,16 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RequestMapping
 class AccessController {
     private final AccessService service;
+    private final PlateRecognitionService recognition;
 
-    AccessController(AccessService service) {
+    AccessController(AccessService service, PlateRecognitionService recognition) {
         this.service = service;
+        this.recognition = recognition;
+    }
+
+    @PostMapping("/api/v1/access/plate-recognitions")
+    Envelope<PlateRecognitionService.PlateCandidate> recognize(@RequestPart("image") MultipartFile image) {
+        return Envelope.ok(recognition.recognize(image));
     }
 
     @PostMapping("/api/v1/access/entries")
@@ -78,7 +89,8 @@ class AccessErrors {
                         java.util.UUID.randomUUID().toString()));
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class})
+    @ExceptionHandler({HttpMessageNotReadableException.class, MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class, MaxUploadSizeExceededException.class})
     ResponseEntity<Envelope<Void>> badRequest(Exception error) {
         return ResponseEntity.badRequest().body(new Envelope<>("INVALID_ARGUMENT",
                 "请求格式或参数无效", null, java.util.UUID.randomUUID().toString()));

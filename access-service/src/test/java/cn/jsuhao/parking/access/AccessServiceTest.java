@@ -41,6 +41,25 @@ class AccessServiceTest {
     @MockitoBean PassClient passes;
 
     @Test
+    void preferredSpaceIsExactAndStaleRecommendationFailsWithoutReassignment() {
+        String preferred = UUID.randomUUID().toString();
+        String other = UUID.randomUUID().toString();
+        String key = UUID.randomUUID().toString();
+        String plate = "苏P" + UUID.randomUUID().toString().substring(0, 5);
+        var first = new SpaceView(preferred, "NORMAL", "B1", "A", "A-001", "AVAILABLE", null);
+        var second = new SpaceView(other, "NORMAL", "B1", "A", "A-002", "AVAILABLE", null);
+        when(spaces.available("NORMAL")).thenReturn(Envelope.ok(List.of(first, second)));
+        when(spaces.occupy(eq(preferred), anyString(), any())).thenThrow(remote(409, "SPACE_UNAVAILABLE"));
+        var request = new EntryRequest(plate, "NORMAL", null,
+                OffsetDateTime.parse("2026-10-01T08:00:00+08:00"), preferred);
+        assertEquals("SPACE_UNAVAILABLE", assertThrows(ApiFailure.class,
+                () -> service.enter(request, key)).code());
+        assertEquals("ENTRY_FAILED", repository.byRequestKey(key).orElseThrow().status());
+        assertTrue(repository.activePlate(plate).isEmpty());
+        verify(spaces, never()).occupy(eq(other), anyString(), any());
+    }
+
+    @Test
     void concurrentRetryOfOneEntryOccupiesOnlyOnce() throws Exception {
         String spaceId = UUID.randomUUID().toString();
         String key = UUID.randomUUID().toString();

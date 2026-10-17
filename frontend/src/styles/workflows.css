@@ -115,6 +115,51 @@ code {
   letter-spacing: 0;
 }
 
+.plate-recognition {
+  margin: 12px 0 22px;
+  padding: 14px;
+  border: 1px dashed #cbd8e5;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.plate-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #254d68;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.plate-upload input { display: none; }
+.plate-upload:focus-within { outline: 2px solid #8aaad0; outline-offset: 3px; }
+.plate-upload .app-icon { width: 17px; height: 17px; }
+.plate-recognition p { margin: 8px 0 0; color: #728197; font-size: 11px; line-height: 1.65; }
+
+.estimate-panel { margin-bottom: 22px; }
+.estimate-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 14px; align-items: end; }
+.estimate-fields .stacked-field { margin: 0; }
+.estimate-result { display: flex; justify-content: space-between; gap: 20px; margin-top: 18px; padding: 16px 18px; border-radius: 9px; background: #eff6e7; color: #49622d; }
+.estimate-result strong { display: block; font-size: 26px; }
+.estimate-result small { display: block; color: #82946d; }
+.estimate-result ul { margin: 0; padding-left: 18px; font-size: 11px; line-height: 1.7; }
+.recommendation-panel { margin-top: 22px; }
+.recommendation-controls { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(150px, 1fr) auto; gap: 12px; }
+.recommendation-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.recommendation-card { display: grid; gap: 5px; text-align: left; border: 1px solid #dce5e9; border-radius: 11px; padding: 16px; background: linear-gradient(150deg, #f9fcf7, #f0f5fb); color: #223951; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
+.recommendation-card:hover, .recommendation-card:focus-visible { transform: translateY(-3px); box-shadow: 0 10px 24px #1c3b5a17; }
+.recommendation-card strong { font-size: 20px; }
+.recommendation-card small { color: #8997a5; }
+.recommendation-rank { color: #81a34a; font-size: 11px; font-weight: 700; }
+.recommendation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.recommendation-actions .el-button { margin-left: 0; }
+.selected-space-hint { margin-top: 12px; color: #516c35; background: #f1f6e8; padding: 11px; border-radius: 8px; font-size: 11px; }
+@media (max-width: 760px) { .estimate-fields { grid-template-columns: 1fr; } .estimate-result { display: block; } }
+@media (max-width: 760px) { .recommendation-controls, .recommendation-list { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .recommendation-card { transition: none; } }
+
 .type-picker {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -17,6 +17,7 @@
 | 方法与路径 | 输入 | data | 要点 |
 |---|---|---|---|
 | GET /api/v1/spaces?type=NORMAL | type 可选：NORMAL、ACCESSIBLE、CHARGING、RESERVATION | [{spaceId,type,floor,zone,number,status}] | 只读，不替代预约冲突检查 |
+| GET /api/v1/spaces/recommendations?terminal=T1&type=NORMAL | terminal 必填：T1/T2；type 必填：NORMAL/ACCESSIBLE/CHARGING | [{spaceId,type,floor,zone,number,status,walkingMinutes,reason,dataVersion}] | 只读，默认最多 3 条 AVAILABLE 候选（`parking.recommendation.max-results` 可配置）；步行分钟为演示估计，不预留资源；入场仍需原子占位，预约位不推荐 |
 | GET /internal/v1/spaces?type=RESERVATION | type 必填；类型枚举同公开列表 | 同公开列表，包含 AVAILABLE、OCCUPIED、OUT_OF_SERVICE | pass-service 查询物理预约位及当前状态；未来时段冲突仍由 pass 自有库判断，不能改用仅返回 AVAILABLE 的接口 |
 | POST /api/v1/spaces | {type,floor,zone,number} | {spaceId,type,floor,zone,number,status} | 管理员演示创建物理车位，初始 AVAILABLE；编号唯一；CHARGING 同一事务创建配套充电桩 |
 | PATCH /api/v1/spaces/{spaceId}/service-status | {status} | 同上 | status 仅 AVAILABLE/OUT_OF_SERVICE；OCCUPIED 不可停用，保留历史而不物理删除 |
@@ -24,7 +25,8 @@
 | POST /internal/v1/spaces/{spaceId}/occupy | {parkingSessionId} | {spaceId,type,floor,zone,number,status,parkingSessionId} | 条件更新 AVAILABLE→OCCUPIED；同 session 重试返回相同结果 |
 | POST /internal/v1/spaces/{spaceId}/release | {parkingSessionId} | 同上，status=AVAILABLE | 只有相同 session 可释放；重复释放幂等 |
 | POST /internal/v1/spaces/{spaceId}/settlement | {parkingSessionId} | {parkingSessionId,chargingCents} | 出账前冻结本停车记录充电费用；必须仍占用此车位且无 ACTIVE 充电；有 ACTIVE 返回 409 STATE_CONFLICT；冻结后禁止新增充电，同 session 重试返回原快照 |
-| POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；同键并发入场由 access 自有库请求键行锁串行化，停车记录独立提交以支持故障恢复，重试返回同一记录；出场附加字段用于页面重开后恢复待结算工作台 |
+| POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?,preferredSpaceId?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | preferredSpaceId 仅用于非预约位的可选精确选择，须为当前可用且类型匹配的车位；竞争占位失败返回 SPACE_UNAVAILABLE，不悄悄换位。entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；同键并发入场由 access 自有库请求键行锁串行化，停车记录独立提交以支持故障恢复，重试返回同一记录；出场附加字段用于页面重开后恢复待结算工作台 |
+| POST /api/v1/access/plate-recognitions | multipart/form-data 的 image 文件，仅 JPEG/PNG，大小上限由服务配置 | {plateNumber?:string,source:"AI_CANDIDATE",model:string} | 可选图片识别；未识别到唯一车牌时 plateNumber=null。候选值须人工确认后另行调用原入场接口，本接口不占位、不建停车记录、不保存原图。功能未配置、模型故障或非法响应返回 503 DEPENDENCY_UNAVAILABLE；非法图片返回 400 INVALID_ARGUMENT |
 | GET /api/v1/access/locate?plateNumber=... | plateNumber 必填 | 同上 | 仅返回仍在场车辆；带回已冻结出场意图；billing 故障时 `EXIT_PENDING_PAYMENT` 的 billId 可暂为空，重试出账后再支付/释放 |
 | GET /internal/v1/access/sessions?from=...&to=... | 带偏移量的 from、to，左闭右开 | [{parkingSessionId,entryTime,exitTime?,status}] | 只给 analytics 统计已完成入场的记录（PARKED/EXIT_PENDING_PAYMENT/PAID_PENDING_RELEASE/CLOSED），排除 ENTERING/ENTRY_FAILED |
 
@@ -41,6 +43,7 @@
 | POST /internal/v1/billing/bills/{billId}/payments | {simulatedResult,paymentSource?} | {paymentId,billId,billStatus,paymentStatus,paymentSource,amountCents} | SUCCESS/FAILURE；paymentSource: SIMULATED/MONTHLY_BALANCE；已成功支付重试返回原成功记录 |
 | POST /api/v1/billing/bills/{billId}/payments | 同上 | 同上 | 供独立演示/前端；出场仍通过 access 协调 |
 | POST /api/v1/billing/bills/{billId}/invoice-requests | {invoiceTitle,taxNumber?} | {invoiceRequestId,billId,status} | 仅已付账单，模拟申请 |
+| POST /api/v1/billing/parking-estimates | {entryTime,exitTime} | {parkingBaseCents,amountDueCents,rateVersion,feeItems:[{name,amountCents,detail}]} | 只读普通停车基础费预估；复用现有费率引擎，不生成账单或支付。时间必须带偏移且 exitTime 晚于 entryTime；不含权益、充电及异常附加费 |
 
 BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepaidCents,prepaidRefundCents,parkingDueCents,chargingCents,exceptionCents,amountDueCents,rateVersion,feeItems:[{name,amountCents,detail}]}。prepaidCents 是本单实际抵扣额；prepaidRefundCents 是待退差额。金额不为负；优惠、预付先作用于停车基础费，充电和异常费不参与抵扣。月卡余额可支付整张折后账单；余额不足则整笔改为模拟支付。账单 status: UNPAID/PAID。账单创建时保存费率版本和明细快照。
 
@@ -77,6 +80,7 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 | GET /api/v1/analytics/traffic?from=...&to=...&granularity=HOUR | 带偏移量时间，粒度 HOUR/DAY | {reportId,from,to,granularity,buckets:[{start,count}],peakBucket,totalEntries} | 入场时刻计数，左闭右开；生成的报表快照存 analytics 自有库 |
 | GET /api/v1/analytics/traffic-preview?from=...&to=...&granularity=HOUR | 同上 | 同上，reportId=null | 只读预览，不持久化，供总览图表刷新 |
 | GET /api/v1/analytics/traffic-reports/{id} | 报表 ID | 同上 | 重看已保存的快照，不重新访问 access |
+| POST /api/v1/analytics/traffic-reports/{id}/ai-insight | 已保存报表 ID；无请求体、无幂等键要求 | {reportId,source:"AI_ADVISORY",model,summary,actions:[string]} | EX-04 可选 AI 运营解读；analytics 只向外部模型发送本服务报表的时段汇总，不传车牌、停车记录或库凭据；不修改/缓存报表，AI 文本仅供参考。未配置或模型故障/非法响应返回 503 DEPENDENCY_UNAVAILABLE；报表不存在返回 404 NOT_FOUND |
 
 ## 服务依赖及开发范围
 

@@ -11,6 +11,15 @@ CREATE TABLE IF NOT EXISTS parking_space (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS zone_walk_time (
+    floor VARCHAR(20) NOT NULL,
+    zone_code VARCHAR(20) NOT NULL,
+    terminal_code VARCHAR(10) NOT NULL,
+    walking_minutes INT NOT NULL,
+    data_version VARCHAR(50) NOT NULL,
+    PRIMARY KEY (floor, zone_code, terminal_code)
+);
+
 CREATE TABLE IF NOT EXISTS charger (
     id VARCHAR(36) PRIMARY KEY,
     space_id VARCHAR(36) NOT NULL UNIQUE,

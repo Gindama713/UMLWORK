@@ -22,17 +22,22 @@ public class SpaceOperations {
     private final Idempotency idempotency;
     private final String rateVersion;
     private final long rateCentsPerKwh;
+    private final int recommendationLimit;
 
     public SpaceOperations(JdbcTemplate jdbc, Idempotency idempotency,
             @Value("${parking.charging.rate-version}") String rateVersion,
-            @Value("${parking.charging.rate-cents-per-kwh}") long rateCentsPerKwh) {
+            @Value("${parking.charging.rate-cents-per-kwh}") long rateCentsPerKwh,
+            @Value("${parking.recommendation.max-results}") int recommendationLimit) {
         if (rateCentsPerKwh < 0 || rateVersion.isBlank()) {
             throw new IllegalArgumentException("Invalid charging rate configuration");
         }
+        if (recommendationLimit < 1 || recommendationLimit > 20)
+            throw new IllegalArgumentException("Invalid recommendation limit");
         this.jdbc = jdbc;
         this.idempotency = idempotency;
         this.rateVersion = rateVersion;
         this.rateCentsPerKwh = rateCentsPerKwh;
+        this.recommendationLimit = recommendationLimit;
     }
 
     public record SpaceView(String spaceId, String type, String floor, String zone,
@@ -42,6 +47,8 @@ public class SpaceOperations {
             String status, String startTime, String endTime, BigDecimal energyKwh,
             Long chargingCents, String rateVersion) {}
     public record ChargingFeeView(String parkingSessionId, long chargingCents) {}
+    public record RecommendationView(String spaceId, String type, String floor, String zone,
+            String number, String status, int walkingMinutes, String reason, String dataVersion) {}
 
     public SpaceView create(String type, String floor, String zone, String number, String key) {
         if (type == null || !SPACE_TYPES.contains(type)) throw SpaceException.invalid("Unknown space type");
@@ -92,6 +99,26 @@ public class SpaceOperations {
                 + (availableOnly ? " AND status='AVAILABLE'" : "") + " ORDER BY floor,zone_code,space_number";
         return type == null ? jdbc.query(sql, SpaceOperations::mapSpace)
                 : jdbc.query(sql, SpaceOperations::mapSpace, type);
+    }
+
+    public List<RecommendationView> recommendations(String terminal, String type) {
+        if (!"T1".equals(terminal) && !"T2".equals(terminal))
+            throw SpaceException.invalid("terminal must be T1 or T2");
+        if (!"NORMAL".equals(type) && !"ACCESSIBLE".equals(type) && !"CHARGING".equals(type))
+            throw SpaceException.invalid("type must be NORMAL, ACCESSIBLE or CHARGING");
+        return jdbc.query("""
+                SELECT s.id,s.type,s.floor,s.zone_code,s.space_number,s.status,
+                       w.walking_minutes,w.data_version
+                FROM parking_space s JOIN zone_walk_time w
+                  ON w.floor=s.floor AND w.zone_code=s.zone_code
+                WHERE w.terminal_code=? AND s.type=? AND s.status='AVAILABLE'
+                ORDER BY w.walking_minutes,s.floor,s.zone_code,s.space_number
+                LIMIT ?
+                """, (rs, row) -> new RecommendationView(rs.getString("id"), rs.getString("type"),
+                        rs.getString("floor"), rs.getString("zone_code"), rs.getString("space_number"),
+                        rs.getString("status"), rs.getInt("walking_minutes"),
+                        "类型匹配；距" + terminal + "航站楼演示步行约" + rs.getInt("walking_minutes") + "分钟",
+                        rs.getString("data_version")), terminal, type, recommendationLimit);
     }
 
     public List<ChargerView> chargers(String spaceId) {

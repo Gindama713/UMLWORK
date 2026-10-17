@@ -43,6 +43,12 @@ parking:
   analytics:
     redis:
       ttl: ${ANALYTICS_REDIS_TTL:PT1H}
+    ai:
+      enabled: ${ANALYTICS_AI_ENABLED:false}
+      url: ${ANALYTICS_AI_URL:https://api.deepseek.com/chat/completions}
+      model: ${ANALYTICS_AI_MODEL:deepseek-flash}
+      api-key: ${DEEPSEEK_API_KEY:}
+      timeout-seconds: ${ANALYTICS_AI_TIMEOUT_SECONDS:15}
 
 management:
   health:

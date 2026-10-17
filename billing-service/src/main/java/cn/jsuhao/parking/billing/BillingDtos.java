@@ -8,6 +8,10 @@ record BillRequest(String parkingSessionId, OffsetDateTime entryTime, OffsetDate
 
 record FeeItem(String name, long amountCents, String detail) {}
 
+record EstimateRequest(OffsetDateTime entryTime, OffsetDateTime exitTime) {}
+record ParkingEstimate(long parkingBaseCents, long amountDueCents, String rateVersion,
+        List<FeeItem> feeItems) {}
+
 record BillView(String billId, String parkingSessionId, String status, long parkingBaseCents,
         long discountCents, long prepaidCents, long prepaidRefundCents, long parkingDueCents,
         long chargingCents, long exceptionCents, long amountDueCents, String rateVersion,

@@ -47,17 +47,24 @@ class AccessService {
         String type = input.spaceType() == null ? "NORMAL" : input.spaceType().toUpperCase(Locale.ROOT);
         if (!SPACE_TYPES.contains(type)) throw invalid("未知车位类型");
         String reservationId = blankToNull(input.reservationId());
+        String preferredId = blankToNull(input.preferredSpaceId());
         if (type.equals("RESERVATION") != (reservationId != null))
             throw invalid("预约位必须提供预约 ID，其他车位不能提供预约 ID");
+        if (preferredId != null) {
+            if (reservationId != null) throw invalid("预约入场不可指定其他车位");
+            try { UUID.fromString(preferredId); }
+            catch (IllegalArgumentException error) { throw invalid("preferredSpaceId 必须为 UUID"); }
+        }
         OffsetDateTime entry = input.entryTime() == null
                 ? OffsetDateTime.now(ZoneOffset.UTC) : input.entryTime();
-        String payload = plate + "|" + type + "|" + reservationId + "|" +
+        String payload = plate + "|" + type + "|" + reservationId + "|" + preferredId + "|" +
                 (input.entryTime() == null ? "AUTO" : input.entryTime().toInstant());
         repo.registerRequest(key, "ENTRY", payload);
-        return repo.withRequestLock(key, () -> enterLocked(plate, type, reservationId, entry, key, payload));
+        return repo.withRequestLock(key, () -> enterLocked(plate, type, reservationId, preferredId,
+                entry, key, payload));
     }
 
-    private SessionView enterLocked(String plate, String type, String reservationId,
+    private SessionView enterLocked(String plate, String type, String reservationId, String preferredId,
             OffsetDateTime entry, String key, String payload) {
         SessionRow session = repo.byRequestKey(key).orElse(null);
         if (session == null) {
@@ -98,7 +105,9 @@ class AccessService {
                 repo.chooseSpace(session.id(), occupied);
             } else {
                 List<SpaceView> candidates = session.spaceId() == null
-                        ? available(type)
+                        ? available(type).stream()
+                            .filter(space -> preferredId == null || space.spaceId().equals(preferredId))
+                            .toList()
                         : List.of(new SpaceView(session.spaceId(), type, session.floor(),
                                 session.zone(), session.number(), "OCCUPIED", session.id()));
                 boolean occupied = false;
@@ -113,6 +122,9 @@ class AccessService {
                         break;
                     } catch (FeignException.Conflict race) {
                         if (session.spaceId() != null) throw race;
+                        chosenId = null; // Explicit conflict means the remote space was never ours.
+                        if (preferredId != null) throw failure("SPACE_UNAVAILABLE", HttpStatus.CONFLICT,
+                                "推荐车位已被占用，请刷新推荐");
                     }
                 }
                 if (!occupied) throw failure("SPACE_UNAVAILABLE", HttpStatus.CONFLICT,

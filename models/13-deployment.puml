@@ -2,6 +2,7 @@
 title Docker Compose 默认栈部署图（AI-辅助）
 top to bottom direction
 node "浏览器 / 烟测客户端" as client
+cloud "可选 AI 服务\nDeepSeek API" as vision
 node "Docker Compose 主机\nWindows Docker Desktop 或 Ubuntu VM" as host {
   node "frontend 容器\nNginx :80（宿主 :8080）" as frontend {
     artifact "Vue 构建产物" as dist
@@ -47,4 +48,6 @@ billing --> dbBilling : JDBC / 专属账号
 pass --> dbPass : JDBC / 专属账号
 analytics --> dbAnalytics : JDBC / 专属账号
 analytics ..> redis : 已保存报表缓存；故障回源 MySQL
+access ..> vision : 启用图片识别时 HTTPS；候选需人工确认
+analytics ..> vision : 启用报表解读时 HTTPS；仅汇总数据
 @enduml

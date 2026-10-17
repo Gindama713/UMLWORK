@@ -16,6 +16,11 @@ class BillingController {
 
     BillingController(BillingService billing) { this.billing = billing; }
 
+    @PostMapping("/api/v1/billing/parking-estimates")
+    ApiResponse<ParkingEstimate> estimate(@RequestBody EstimateRequest request, HttpServletRequest http) {
+        return ApiResponse.ok(billing.estimate(request), http);
+    }
+
     @PostMapping("/internal/v1/billing/bills")
     ApiResponse<BillView> createBill(@RequestBody BillRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String key,

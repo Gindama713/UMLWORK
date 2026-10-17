@@ -20,9 +20,13 @@
 | analytics-service | 车流量和报表快照 | 18085 | parking_analytics |
 | frontend | Vue 3 + Element Plus + ECharts 演示页 | Vite 输出 | 无 |
 
-服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 31 个演示车位，其中 6 个充电位均有充电桩，2 个普通位为停用示例。已有数据库的人工车位和状态不会被覆盖。
+服务只能通过接口交换 ID/DTO，不能连接其他服务的库。业务金额使用整数分；费率由各权威服务读取 Nacos 配置或本地 application.yml 兜底值，可通过环境变量覆盖。SQL 建表由各服务 resources/schema.sql 执行；space-service 的 data.sql 幂等插入 63 个演示车位（普通 30、无障碍 7、充电 12、预约 14），每个充电位均有充电桩，2 个普通位为停用示例。已有数据库的人工车位和状态不会被覆盖。
 
-如需让运营图表展示非零车流，在网关和五个业务服务启动后运行 `pwsh -NoProfile -File scripts/seed-demo-traffic.ps1 -IncludeActive`。脚本通过正式 API 追加 6 条已完成停车和最多 2 条在场停车，最后核对近 24 小时车流；每次运行都会新增已完成记录，请只在演示环境按需执行。它不直接写其他服务数据库，也不修改费率或支付规则。
+2026-10-17 可选扩展：入场页可上传 JPEG/PNG 车牌图片辅助识别，模型只回填可编辑候选，人工确认后仍走原 UC-02；默认关闭，启用时在未提交的 `.env` 或本机环境中设置 `PLATE_RECOGNITION_ENABLED=true` 与 `DEEPSEEK_API_KEY`，模型、URL、超时及大小上限由 access-service 配置读取。图片发送第三方但不在本项目落库；模型不可用仍可人工输入。结算页的普通停车费预估复用 billing 计费引擎且不生成账单；车位资源页的 T1/T2 推荐只读查询 space 自有 `zone_walk_time` 演示步行数据，选择候选入场时以 `preferredSpaceId` 原子占位，冲突会明确拒绝。三项均不替代十项课程必做功能，接口与边界见 [契约](docs/api-contract.md)和[扩展记录](docs/feature-roadmap.md)。
+
+运营报表页在生成并保存报表后可按需点击“生成 AI 解读”。`analytics-service` 仅向模型发送该报表的时间范围、粒度、总数和分时段计数，不发送车牌或停车记录；返回的文字标为 `AI_ADVISORY`，原始统计仍是事实依据。此功能默认关闭；需在未提交的 `.env` 或本机环境设置 `ANALYTICS_AI_ENABLED=true` 和 `DEEPSEEK_API_KEY`。模型不可用时原报表仍可查看。它是 UC-10 的可选扩展 EX-04，不影响报表数据或其他业务状态。
+
+如需让运营图表展示非零车流，在网关和五个业务服务启动后运行 `pwsh -NoProfile -File scripts/seed-demo-traffic.ps1 -IncludeActive`。默认通过正式 API 追加 24 条已完成停车，并确保编号 101～108 的固定演示车牌在场（已在场则跳过）；可用 `-ClosedCount 12 -ActiveCount 12` 调整数量（范围分别为 1～60、1～16）。脚本轮换可用普通车位，核对关闭状态、释放结果和车流增量；每次运行都会新增已完成记录，请只在演示环境按需执行。数据是模拟入场，不代表真实机场客流；它不直接写其他服务数据库，也不修改费率或支付规则。
 
 ## 技术版本
 
@@ -42,7 +46,7 @@ Java 21、Spring Boot 4.0.6、Spring Cloud 2025.1.1、Spring Cloud Alibaba 2025.
 
 五个服务与网关设置 `NACOS_ENABLED=true`、`NACOS_SERVER_ADDR=实际地址`；调用方把 `SPACE_SERVICE_URL`、`BILLING_SERVICE_URL`、`PASS_SERVICE_URL`、`ACCESS_SERVICE_URL` 设置为空值。网关用 `--spring.profiles.active=nacos` 启动，路由切换为 `lb://服务名`。本机 Nacos 3.1.1 standalone 的客户端端口为 8848，控制台端口为 8080。2026-09-30 实测六实例注册与网关发现，证据和控制台截图状态见 [交接记录](docs/agent-handoff.md)。
 
-配置中心单独启用：给需要读取 Nacos 配置的应用增加 `--spring.profiles.active=nacos-config`；网关同时使用服务发现和配置中心时用 `--spring.profiles.active=nacos,nacos-config`。六个模块各自的 `application-nacos-config.yml` 通过 `optional:nacos:<spring.application.name>.properties` 导入同名 Data ID（`DEFAULT_GROUP`），地址使用 `NACOS_SERVER_ADDR`。将 [config/nacos](config/nacos) 内三个示例文件分别以原文件名发布到 Nacos；它们含 billing 的 16 项费率、space 的 2 项充电参数、pass 的 5 项预约/月卡参数（含到期扫描间隔），不含数据库密码。gateway、access、analytics 没有业务费率，允许对应 Data ID 暂不存在。默认 profile 不连接 Nacos 配置中心；本地 application.yml 保留相同前缀和默认值。服务发现由 `NACOS_ENABLED` 独立控制。新建账单按当前配置生成费率版本与金额的同一快照，旧账单不重算；space/pass 的 `@Value` 参数由 `@RefreshScope` 在配置变更后重新注入。2026-10-07 的热更新证据属于改为显式 profile 之前的运行方式；新 profile 的热更新需重新实测。
+配置中心单独启用：给需要读取 Nacos 配置的应用增加 `--spring.profiles.active=nacos-config`；网关同时使用服务发现和配置中心时用 `--spring.profiles.active=nacos,nacos-config`。六个模块各自的 `application-nacos-config.yml` 通过 `optional:nacos:<spring.application.name>.properties` 导入同名 Data ID（`DEFAULT_GROUP`），地址使用 `NACOS_SERVER_ADDR`。将 [config/nacos](config/nacos) 内三个示例文件分别以原文件名发布到 Nacos；它们含 billing 的 16 项费率、space 的 2 项充电参数及 1 项推荐数量、pass 的 5 项预约/月卡参数（含到期扫描间隔），不含数据库密码。gateway、access、analytics 没有业务费率，允许对应 Data ID 暂不存在。默认 profile 不连接 Nacos 配置中心；本地 application.yml 保留相同前缀和默认值。服务发现由 `NACOS_ENABLED` 独立控制。新建账单按当前配置生成费率版本与金额的同一快照，旧账单不重算；space/pass 的 `@Value` 参数由 `@RefreshScope` 在配置变更后重新注入。2026-10-07 的热更新证据属于改为显式 profile 之前的运行方式；新 profile 的热更新需重新实测。
 
 在项目根目录运行 `./scripts/verify-nacos-pricing-refresh.ps1` 可复核费率热更新；脚本要求 Nacos 中已经发布 v1 演示基线，测试结束会恢复原配置。它只创建新的模拟账单，不修改旧账单。
 
@@ -88,10 +92,10 @@ Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 
 - GitHub Actions 的 [`Verify`](.github/workflows/verify.yml) 在推送、PR 和手动触发时运行 Java 21 后端测试、Node 22 前端测试与构建；它使用 H2，不代替下面的真实 MySQL 与 Docker 联调。远端运行结果以 GitHub Actions 页面为准。
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
-- 最近一次 Java 21 全模块自动测试为 25 条、0 失败（2026-10-14；见 `docs/agent-handoff.md`）；真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
+- 最近一次 Java 21 全模块自动测试为 33 条、0 失败（2026-10-17；见 `docs/agent-handoff.md`）；其中新增种子容量与 12 辆车独立占位/释放测试。真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票，执行 `./scripts/smoke-extensions.ps1` 核对预估、推荐及精确占位冲突。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
-- [模型源文件](models/README.md)是 18 份可编辑 PlantUML 草案，28 张渲染图位于 `models/rendered/`（23 张 UML、5 张 ER）；11 号分三张泳道图，15、16 号分别渲染五个服务的类图和 ER 图，17 号为服务级出场进程顺序图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
+- [模型源文件](models/README.md)是 19 份可编辑 PlantUML 草案，34 张渲染图位于 `models/rendered/`（29 张 UML、5 张 ER）；11 号分三张泳道图，15、16 号分别渲染五个服务的类图和 ER 图，17 号为服务级出场进程顺序图，18 号独立说明四项可选扩展。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
 
 ## 协作约定
 

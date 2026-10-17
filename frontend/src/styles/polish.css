@@ -88,6 +88,13 @@ body {
 .analytics-result-heading h3 { margin: 0 0 18px; font-size: 18px; }
 .analytics-report-id { color: #718060; background: #eef5df; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
 .analytics-table-title { margin-top: 30px; }
+.insight-card { margin-top: 24px; padding: 22px; border: 1px solid #dbe8d1; border-radius: 14px; background: linear-gradient(130deg, #f4f9ec, #fff 65%); }
+.insight-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.insight-card-heading h3 { margin: 3px 0 12px; font-size: 17px; }
+.insight-summary { color: #263b4e; font-size: 14px; font-weight: 600; line-height: 1.7; }
+.insight-card ol { margin: 14px 0; padding-left: 24px; color: #506273; line-height: 1.8; }
+.insight-card li + li { margin-top: 8px; }
+.insight-source { display: block; margin-top: 14px; color: #76879a; font-size: 11px; }
 
 .metric-card > strong {
   font-size: clamp(38px, 3vw, 48px);

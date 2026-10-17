@@ -15,6 +15,7 @@ record TrafficSession(String parkingSessionId, OffsetDateTime entryTime,
 record TrafficBucket(OffsetDateTime start, int count) {}
 record TrafficReport(String reportId, OffsetDateTime from, OffsetDateTime to, String granularity,
                      List<TrafficBucket> buckets, TrafficBucket peakBucket, int totalEntries) {}
+record TrafficInsight(String reportId, String source, String model, String summary, List<String> actions) {}
 
 class TrafficFailure extends RuntimeException {
     final String code;

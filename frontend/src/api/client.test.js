@@ -52,3 +52,17 @@ test('a malformed success response keeps the key until the result is known', asy
   await api('/api/v1/access/uncertain-check', 'POST', {})
   assert.equal(keys[0], keys[1])
 })
+
+test('image upload lets the browser set multipart boundaries and has no write key', async () => {
+  const image = new FormData()
+  image.append('image', new Blob(['photo'], { type: 'image/jpeg' }), 'car.jpg')
+  globalThis.fetch = async (_path, options) => {
+    assert.equal(options.body, image)
+    assert.equal(options.headers['Content-Type'], undefined)
+    assert.equal(options.headers['Idempotency-Key'], undefined)
+    return new Response(JSON.stringify({ code: 'OK', data: { plateNumber: null } }), { status: 200 })
+  }
+  assert.deepEqual(await api('/api/v1/access/plate-recognitions', 'POST', image), {
+    plateNumber: null,
+  })
+})

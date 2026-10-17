@@ -11,6 +11,10 @@ spring:
   sql:
     init:
       mode: always
+  servlet:
+    multipart:
+      max-file-size: ${PLATE_IMAGE_MAX_SIZE:3MB}
+      max-request-size: ${PLATE_REQUEST_MAX_SIZE:4MB}
   cloud:
     nacos:
       config:
@@ -35,6 +39,14 @@ clients:
     url: ${BILLING_SERVICE_URL:http://localhost:18083}
   pass:
     url: ${PASS_SERVICE_URL:http://localhost:18084}
+
+plate-recognition:
+  enabled: ${PLATE_RECOGNITION_ENABLED:false}
+  url: ${PLATE_RECOGNITION_URL:https://api.deepseek.com/chat/completions}
+  model: ${PLATE_RECOGNITION_MODEL:deepseek-flash}
+  api-key: ${DEEPSEEK_API_KEY:}
+  max-bytes: ${PLATE_RECOGNITION_MAX_BYTES:3145728}
+  timeout-seconds: ${PLATE_RECOGNITION_TIMEOUT_SECONDS:15}
 
 management:
   endpoints:

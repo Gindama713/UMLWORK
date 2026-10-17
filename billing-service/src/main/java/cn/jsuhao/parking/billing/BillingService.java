@@ -27,6 +27,14 @@ class BillingService {
         this.pricing = pricing;
     }
 
+    ParkingEstimate estimate(EstimateRequest request) {
+        if (request == null) throw new IllegalArgumentException("Estimate request is required");
+        var price = pricing.calculate(new BillRequest(null, request.entryTime(), request.exitTime(),
+                "NONE", 0L, 0L, "NONE"));
+        return new ParkingEstimate(price.parkingBaseCents(), price.amountDueCents(),
+                price.rateVersion(), price.items());
+    }
+
     @Transactional
     BillView createBill(BillRequest request, String key) {
         requireKey(key);
