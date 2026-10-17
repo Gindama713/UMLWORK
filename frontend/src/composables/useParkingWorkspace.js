@@ -67,6 +67,7 @@ export function useParkingWorkspace() {
   const report = ref(null)
   const trafficInsight = ref(null)
   const reservation = ref(null)
+  const reservationAvailability = ref(null)
   const monthly = ref(null)
   const monthlyLedger = ref([])
   const charging = ref(null)
@@ -251,6 +252,17 @@ export function useParkingWorkspace() {
       entry.spaceType = 'RESERVATION'
       entry.preferredSpaceId = ''
       return reservation.value
+    })
+  }
+  async function loadReservationAvailability() {
+    await action(async () => {
+      const from = iso(reserve.startTime)
+      const to = iso(reserve.endTime)
+      if (!from || !to || new Date(from) >= new Date(to)) throw new Error('请选择有效的未来预约时段')
+      const params = new URLSearchParams({ from, to })
+      const spaces = await api(`/api/v1/passes/reservation-availability?${params}`)
+      reservationAvailability.value = { from, to, spaces }
+      return { from, to, total: spaces.length, available: spaces.filter((space) => space.available).length }
     })
   }
   async function payReservation(result) {
@@ -513,6 +525,7 @@ export function useParkingWorkspace() {
     report,
     trafficInsight,
     reservation,
+    reservationAvailability,
     monthly,
     monthlyLedger,
     charging,
@@ -554,6 +567,7 @@ export function useParkingWorkspace() {
     createSpace,
     setSpaceStatus,
     createReservation,
+    loadReservationAvailability,
     payReservation,
     refreshReservation,
     cancelReservation,

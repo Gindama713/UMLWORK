@@ -1,0 +1,42 @@
+@startuml
+title UC-05 扩展：预约车位时间窗查询（服务级顺序图，AI-辅助）
+actor 车主
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "pass-service" as Pass
+participant "space-service" as Space
+database "pass 自有 MySQL" as DB
+
+车主 -> UI : 输入未来 [from, to)，查看空档
+activate UI
+UI -> GW : GET /api/v1/passes/reservation-availability
+activate GW
+GW -> Pass : 转发带时区的 from、to
+activate Pass
+alt 时段非法
+  Pass --> GW : 400 INVALID_ARGUMENT
+else 时段有效
+  Pass -> Space : GET /internal/v1/spaces?type=RESERVATION
+  activate Space
+  Space --> Pass : 预约车位与当前物理状态
+  deactivate Space
+  alt space-service 不可用
+    Pass --> GW : 503 DEPENDENCY_UNAVAILABLE
+  else 清单可用
+    Pass -> DB : 查询相交的有效预约时间窗
+    activate DB
+    DB --> Pass : 时间、状态、车位 ID（不返回车牌）
+    deactivate DB
+    Pass --> GW : 各车位空档、占档及停用状态
+  end
+end
+deactivate Pass
+GW --> UI : 保留 HTTP 状态与响应体
+deactivate GW
+UI --> 车主 : 展示时间轴与查询快照提示
+deactivate UI
+note over Pass, DB
+  读接口不锁位。创建预约仍由 pass-service 按 [start,end)
+  串行检查冲突；当前 OCCUPIED 不妨碍未来预约。
+end note
+@enduml

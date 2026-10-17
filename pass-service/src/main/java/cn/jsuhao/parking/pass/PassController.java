@@ -28,6 +28,12 @@ class PassController {
         return ApiResponse.ok(service.reservationView(id));
     }
 
+    @GetMapping("/api/v1/passes/reservation-availability")
+    ApiResponse<java.util.List<ReservationAvailabilityView>> availability(
+            @RequestParam OffsetDateTime from, @RequestParam OffsetDateTime to) {
+        return ApiResponse.ok(service.availability(from, to));
+    }
+
     @PostMapping("/api/v1/passes/reservations/{id}/pay")
     ApiResponse<ReservationPaymentView> pay(@PathVariable String id,
             @RequestHeader(value = "Idempotency-Key", required = false) String key,
@@ -103,6 +109,9 @@ record CreateMonthlyPass(String plateNumber, OffsetDateTime startTime) {}
 record Deduction(String parkingSessionId, Long amountCents) {}
 
 record ReservationView(String reservationId, String spaceId, String status, long prepaidCents) {}
+record ReservationAvailabilityView(String spaceId, String floor, String zone, String number,
+        String spaceStatus, boolean available, java.util.List<ReservationWindowView> windows) {}
+record ReservationWindowView(OffsetDateTime startTime, OffsetDateTime endTime, String status) {}
 record ReservationPaymentView(String reservationId, String status, String paymentId) {}
 record ReservationCancelView(String reservationId, String status, long refundCents) {}
 record RefundView(String reservationId, String parkingSessionId, long refundCents, String refundId) {}

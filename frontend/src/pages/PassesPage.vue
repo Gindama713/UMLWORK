@@ -3,10 +3,18 @@ import AppIcon from '../components/AppIcon.vue'
 
 const props = defineProps({ workspace: { type: Object, required: true } })
 const {
-  page, label, busy, spaces, reservation, monthly, monthlyLedger, reserve, pass,
+  page, label, busy, spaces, reservation, reservationAvailability, monthly, monthlyLedger, reserve, pass,
   money, dateTime, createReservation, payReservation, refreshReservation, cancelReservation,
-  createPass, refreshPass,
+  loadReservationAvailability, createPass, refreshPass,
 } = props.workspace
+
+function windowStyle(window) {
+  const start = Date.parse(reservationAvailability.value.from)
+  const end = Date.parse(reservationAvailability.value.to)
+  const left = Math.max(0, (Date.parse(window.startTime) - start) / (end - start)) * 100
+  const right = Math.min(1, (Date.parse(window.endTime) - start) / (end - start)) * 100
+  return { left: `${left}%`, width: `${Math.max(0, right - left)}%` }
+}
 </script>
 
 <template>
@@ -25,7 +33,10 @@ const {
         <label>开始时间<input v-model="reserve.startTime" type="datetime-local" step="0.001" /></label>
         <label>结束时间<input v-model="reserve.endTime" type="datetime-local" step="0.001" /></label>
       </div>
-      <el-button class="service-primary" type="primary" :loading="busy" @click="createReservation">创建预约</el-button>
+      <div class="service-actions">
+        <el-button class="service-primary reservation-create" type="primary" :loading="busy" @click="createReservation">创建预约</el-button>
+        <el-button :loading="busy" @click="loadReservationAvailability">查看时段空档</el-button>
+      </div>
 
       <div v-if="reservation" class="service-result">
         <div class="service-result-top"><span>预约凭证</span><el-tag :type="reservation.status === 'CONFIRMED' ? 'success' : reservation.status === 'PENDING_PAYMENT' ? 'warning' : 'info'">{{ label(reservation.status) }}</el-tag></div>
@@ -62,6 +73,27 @@ const {
       <p v-else class="service-placeholder">开卡后，余额和有效期会显示在这里。</p>
     </section>
   </div>
+
+  <section v-if="reservationAvailability" class="service-panel reservation-timeline" aria-label="预约车位时间窗">
+    <div class="service-panel-heading"><span class="service-panel-icon"><AppIcon name="ticket" /></span><div><span class="section-kicker">RESERVATION TIMELINE</span><h3>预约车位时间窗</h3></div></div>
+    <p class="service-panel-note">{{ dateTime(reservationAvailability.from) }} 至 {{ dateTime(reservationAvailability.to) }} · 浅色为空档，色块为已有预约。此处是查询快照；创建、支付或取消后请刷新，最终以创建预约时的冲突检查为准。</p>
+    <div class="reservation-legend"><span>空档</span><span>待预付</span><span>已确认</span><span>已核销</span></div>
+    <div class="reservation-timeline-list">
+      <div v-for="space in reservationAvailability.spaces" :key="space.spaceId" class="reservation-timeline-row">
+        <div class="reservation-space-name"><strong>{{ space.number }}</strong><small>{{ space.floor }} · {{ space.zone }}区 · {{ label(space.spaceStatus) }}</small></div>
+        <div class="reservation-track-wrap">
+          <div class="reservation-track" :class="{ 'is-offline': space.spaceStatus === 'OUT_OF_SERVICE' }" role="img" :aria-label="`${space.number}：${space.spaceStatus === 'OUT_OF_SERVICE' ? '停用' : space.windows.length ? `${space.windows.length} 个已占时段` : '查询时段可约'}`">
+            <span v-for="(window, index) in space.windows" :key="index" class="reservation-block" :class="window.status.toLowerCase()" :style="windowStyle(window)" :title="`${dateTime(window.startTime)} 至 ${dateTime(window.endTime)} · ${label(window.status)}`" />
+          </div>
+          <small v-for="(window, index) in space.windows" :key="index" class="reservation-window-label">{{ dateTime(window.startTime) }}–{{ dateTime(window.endTime) }} · {{ label(window.status) }}</small>
+        </div>
+        <span class="reservation-space-state" :class="{ available: space.available }">{{ space.spaceStatus === 'OUT_OF_SERVICE' ? '停用' : space.available ? '时段可约' : '已有预约' }}</span>
+        <button v-if="space.available" class="reservation-pick" type="button" @click="reserve.spaceId = space.spaceId">选此车位</button>
+      </div>
+      <p v-if="!reservationAvailability.spaces.length" class="service-placeholder">当前没有预约车位，请先在车位资源页配置。</p>
+    </div>
+    <p class="reservation-privacy">仅展示时段与车位状态，不展示其他车主的车牌或预约凭证；当前被占用的车位仍可预约未来时段。</p>
+  </section>
 
   <section v-if="monthlyLedger.length" class="service-panel service-ledger">
     <div class="service-panel-heading"><span class="service-panel-icon"><AppIcon name="chart" /></span><div><span class="section-kicker">ACCOUNT ACTIVITY</span><h3>月卡扣费流水</h3></div></div>

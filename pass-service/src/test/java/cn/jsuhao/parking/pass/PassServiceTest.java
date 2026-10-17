@@ -70,6 +70,43 @@ class PassServiceTest {
     }
 
     @Test
+    void availabilityShowsHalfOpenWindowsAndIgnoresCancelledOrExpiredHolds() {
+        String spaceId = key();
+        String occupiedId = key();
+        String offlineId = key();
+        when(spaces.spaces(eq("RESERVATION"))).thenReturn(ApiResponse.ok(List.of(
+                new SpaceView(spaceId, "RESERVATION", "P1", "A", "A-001", "AVAILABLE"),
+                new SpaceView(occupiedId, "RESERVATION", "P1", "A", "A-002", "OCCUPIED"),
+                new SpaceView(offlineId, "RESERVATION", "P1", "A", "A-003", "OUT_OF_SERVICE"))));
+        OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC).plusDays(5).withNano(0);
+        var first = service.reserve(key(), new CreateReservation("苏A12345", spaceId, start, start.plusHours(1)));
+        service.reserve(key(), new CreateReservation("苏B12345", spaceId, start.plusHours(1), start.plusHours(2)));
+
+        var view = service.availability(start, start.plusHours(2));
+        assertEquals(List.of(start, start.plusHours(1)), view.getFirst().windows().stream()
+                .map(ReservationWindowView::startTime).toList());
+        assertEquals(false, view.getFirst().available());
+        assertEquals(true, view.get(1).available()); // Current occupancy does not block a future reservation.
+        assertEquals(false, view.get(2).available());
+        assertEquals(0, service.availability(start.plusHours(2), start.plusHours(3))
+                .getFirst().windows().size());
+
+        service.cancel(key(), first.reservationId());
+        assertEquals(true, service.availability(start, start.plusHours(1)).getFirst().available());
+
+        String stale = service.reserve(key(), new CreateReservation(
+                "苏C12345", spaceId, start.plusHours(3), start.plusHours(4))).reservationId();
+        jdbc.update("UPDATE reservation SET created_at=? WHERE reservation_id=?",
+                Timestamp.from(Instant.now().minusSeconds(3600)), stale);
+        assertEquals(true, service.availability(start.plusHours(3), start.plusHours(4)).getFirst().available());
+        assertEquals("PENDING_PAYMENT", service.reserve(key(), new CreateReservation(
+                "苏D12345", spaceId, start.plusHours(3), start.plusHours(4))).status());
+        assertEquals("EXPIRED", service.reservationView(stale).status());
+        assertEquals("INVALID_ARGUMENT", assertThrows(ApiException.class,
+                () -> service.availability(start.plusHours(1), start)).code());
+    }
+
+    @Test
     void monthlyBalanceDeductsExactlyOncePerParkingSession() {
         assertEquals("INVALID_ARGUMENT", assertThrows(ApiException.class, () -> service.createMonthly(
                 key(), new CreateMonthlyPass("bad!", OffsetDateTime.now(ZoneOffset.UTC)))).code());

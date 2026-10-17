@@ -2,6 +2,13 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-17：UC-05 预约车位时间窗与空档展示
+
+- **提交顺序与改动**：先把此前 EX-01～EX-04、车位与车辆演示数据等 61 个文件本地提交为 `2e0a738`，未推送，三个原有未跟踪提示词未纳入。随后先更新 `docs/api-contract.md`，在 `pass-service` 的 `PassController`/`PassService` 增加只读 `GET /api/v1/passes/reservation-availability?from=...&to=...`，前端 `useParkingWorkspace.js`、`PassesPage.vue`、`workflows.css` 增加查询按钮与按车位时间轴；新增 `scripts/smoke-reservation-availability.ps1`。README、路线图、需求映射、模型说明、报告图映射一并同步。
+- **接口、状态与数据边界**：返回预约车位基本位置、当前物理状态、指定未来 `[from,to)` 内的有效占档窗口及查询时刻的 `available`；不返回车牌或预约 ID。排除取消、过期及已超时/已开始的待支付预约；`USED` 保留原占档。当前 `OCCUPIED` 不阻止未来预约，`OUT_OF_SERVICE` 不可约。查询不加锁、不承诺最终可用；创建仍由 pass 自有库的 `reservation_lock` 串行检查。space 仅提供只读清单，无跨库 JOIN。没有新增表、状态、费率、依赖或服务调用方向；非法时段 400 `INVALID_ARGUMENT`，space 不可用 503 `DEPENDENCY_UNAVAILABLE`。
+- **测试与实机结果**：`./mvnw.cmd -q test` 退出 0，9 份 Surefire XML 共 **34 条、0 失败/错误**；`npm test -- --run` 为 5/5，`npm run build` 退出 0（原有 ECharts 分包体积提示）。新增 H2 测试断言相邻左闭右开、取消释放、待支付超时不占档、当前占用与停用的未来语义及非法时段。Docker 只重建 pass-service/frontend，pass 容器 healthy；网关 health `UP`，GET 时间窗 `code=OK`、14 个车位。`pwsh -NoProfile -File scripts/smoke-reservation-availability.ps1` 四项 PASS：创建占档、重叠返回 409、相邻成功、取消后空档恢复；`scripts/smoke-gateway.ps1` 原停车/充电/支付恢复/发票/车流主链仍 12 项 PASS。浏览器在预约页输入 2026-11-02 08:00～10:00，看到 14 行空档；点“选此车位”回填 D-001，创建预约后手动刷新时间轴显示橙色待预付占档及完整时段文字，取消并刷新后 D-001 恢复可约。开发验收截图保存在忽略目录 `target/reservation-timeline-dev.png`，不作为课程要求的本人截图。
+- **模型与剩余边界**：图 15 的 pass 类图补真实方法；新增图 19 `19-reservation-availability.puml` 单独描述服务级查询和异常分支，全源 PlantUML 1.2024.3 `-checkonly` 退出 0，15/19 号 PNG 重渲染，打开 19 号检查排版；现为 20 份源、35 张 PNG。课程正式截图仍需负责人本人采集。时间轴是快照，页面已提示创建/取消后手动刷新；高并发冲突的权威判断仍在原写接口，不以时间轴结果代替。
+
 ## 2026-10-17：UC-01/02/10 演示容量与车辆场景扩充
 
 - **改动与模型**：`space-service/data.sql` 在既有楼层/区域追加 32 个幂等种子位和 6 个充电桩，现为普通 30、无障碍 7、充电 12、预约 14，共 63 位、12 桩；保留原 2 个停用示例。既有 ID、车位状态及人工数据不会被种子语句覆盖。`SpaceOperationsTest` 新增种子类型/配桩校验及 12 辆车分别占位、竞争拒绝、全部释放的测试。`scripts/seed-demo-traffic.ps1` 默认可造 24 条已完成停车和编号 101～108 的在场车，数量参数分别可调到 60 和 16；从真实可用普通车位中轮换精确占位，并用变更前后同一时间下界的车流预览核对增量。README、需求映射、报告骨架和扩展候选记录已同步。没有新接口、表结构、状态、费率、服务依赖或 UML 元素；图 01/02/11/15/16 的业务结构不变。

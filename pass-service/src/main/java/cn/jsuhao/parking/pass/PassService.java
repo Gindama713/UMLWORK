@@ -9,8 +9,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -91,6 +93,33 @@ class PassService {
 
     ReservationView reservationView(String rawId) {
         return view(reservation(id(rawId, "reservationId"), false));
+    }
+
+    List<ReservationAvailabilityView> availability(OffsetDateTime from, OffsetDateTime to) {
+        if (from == null || to == null) invalid("from and to are required");
+        Instant start = from.toInstant();
+        Instant end = to.toInstant();
+        Instant now = Instant.now();
+        if (!start.isAfter(now) || !end.isAfter(start)) invalid("availability requires a future positive interval");
+
+        List<SpaceView> reservationSpaces = reservationSpaces();
+        Map<String, List<ReservationWindowView>> windows = new HashMap<>();
+        jdbc.query("SELECT space_id,start_time,end_time,status FROM reservation WHERE start_time<? AND end_time>? "
+                        + "AND (status IN ('CONFIRMED','USED') OR (status='PENDING_PAYMENT' "
+                        + "AND created_at>? AND start_time>?)) ORDER BY start_time",
+                rs -> {
+                    windows.computeIfAbsent(rs.getString("space_id"), ignored -> new java.util.ArrayList<>())
+                            .add(new ReservationWindowView(
+                                    rs.getTimestamp("start_time").toInstant().atOffset(ZoneOffset.UTC),
+                                    rs.getTimestamp("end_time").toInstant().atOffset(ZoneOffset.UTC),
+                                    rs.getString("status")));
+                },
+                at(end), at(start), at(now.minusSeconds(60L * paymentHoldMinutes)), at(now));
+        return reservationSpaces.stream().filter(space -> RESERVATION.equals(space.type())).map(space -> {
+            List<ReservationWindowView> booked = windows.getOrDefault(space.spaceId(), List.of());
+            return new ReservationAvailabilityView(space.spaceId(), space.floor(), space.zone(), space.number(),
+                    space.status(), !"OUT_OF_SERVICE".equals(space.status()) && booked.isEmpty(), booked);
+        }).toList();
     }
 
     @Transactional
@@ -321,16 +350,20 @@ class PassService {
     }
 
     private void requireReservationSpace(String spaceId) {
+        SpaceView target = reservationSpaces().stream().filter(s -> spaceId.equals(s.spaceId())).findFirst()
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "parking space not found"));
+        if (!RESERVATION.equals(target.type()) || "OUT_OF_SERVICE".equals(target.status())) {
+            conflict("SPACE_UNAVAILABLE", "space cannot be reserved");
+        }
+    }
+
+    private List<SpaceView> reservationSpaces() {
         try {
             ApiResponse<List<SpaceView>> response = spaces.spaces(RESERVATION);
             if (response == null || response.data() == null) {
                 throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_UNAVAILABLE", "space response is unavailable");
             }
-            SpaceView target = response.data().stream().filter(s -> spaceId.equals(s.spaceId())).findFirst()
-                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "parking space not found"));
-            if (!RESERVATION.equals(target.type()) || "OUT_OF_SERVICE".equals(target.status())) {
-                conflict("SPACE_UNAVAILABLE", "space cannot be reserved");
-            }
+            return response.data();
         } catch (FeignException error) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_UNAVAILABLE", "space service is unavailable");
         }

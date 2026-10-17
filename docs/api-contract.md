@@ -54,6 +54,7 @@ BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepai
 | 方法与路径 | 输入 | data | 要点 |
 |---|---|---|---|
 | POST /api/v1/passes/reservations | {plateNumber,spaceId,startTime,endTime} | {reservationId,spaceId,status,prepaidCents} | 仅 RESERVATION 车位；时段冲突在 pass 自有库中串行化检查 |
+| GET /api/v1/passes/reservation-availability?from=...&to=... | from、to 必填，ISO 8601 带时区，须为未来的正时段 | [{spaceId,floor,zone,number,spaceStatus,available,windows:[{startTime,endTime,status}]}] | pass 只读组合 space 的预约位清单与本服务有效预约；时间窗按 [start,end) 重叠查询，待支付超时/已开始、取消、过期的记录不占档；USED 仍占其原时段。只展示时段，不暴露车牌或预约 ID；`available` 是查询快照，不保证创建时仍可约，最终以原预约接口的串行冲突检查为准。当前 OCCUPIED 不阻止未来预约，OUT_OF_SERVICE 不可约；space 不可用返回 503 DEPENDENCY_UNAVAILABLE，非法时段返回 400 INVALID_ARGUMENT |
 | GET /api/v1/passes/reservations/{id} | 预约 ID | 同上 | 查询当前持久化状态；过期扫描会将到期未预付/未入场的预约转为 EXPIRED，不更改 USED |
 | POST /api/v1/passes/reservations/{id}/pay | {simulatedResult} | {reservationId,status,paymentId} | SUCCESS 后 CONFIRMED；失败仍 PENDING_PAYMENT |
 | POST /api/v1/passes/reservations/{id}/cancel | {} | {reservationId,status,refundCents} | 开始前取消可退；幂等 |

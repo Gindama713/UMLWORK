@@ -8,7 +8,7 @@
 | 02 | 唯一停车记录并占位 | access：POST /api/v1/access/entries；space：occupy | parking_session、parking_space | 03、05、06、11、15、16 | MySQL 网关入场成功；重复车牌有自动测试；真实 MySQL 8 路同车位占用仅 1 路成功；H2 同键并发入场在 2 连接池下通过，另有 12 辆不同车位占用/释放测试；网关演示新增 40 条 CLOSED、11 条 PARKED，真实 MySQL 同键场景待专项复测 |
 | 03 | 分时阶梯计费、每日封顶 | billing：POST /internal/v1/billing/bills；access：冻结出场意图 | bill、payment、exit_intent、access_request_key | 03、07、08、11、15、16、17 | 5 条定价边界测试；MySQL 2 小时账单 1000 分；billing 断线后保留意图、重试仅一账单 |
 | 04 | 模拟支付、发票申请 | billing：payments、invoice-requests | bill、payment、invoice_request | 03、07、08、14、16、17 | MySQL 8 路并发支付仅一笔成功；支付后释放失败保持待释放、恢复不二次收费；发票申请通过 |
-| 05 | 指定车位预约与预付 | pass：reservations、pay、cancel、consume、GET reservations/{id}；space：内部只读车位列表 | reservation、reservation_prepayment | 04、09、10、11、15、16 | MySQL 8 路同窗预约仅一路成功；预约优惠、预付抵扣、差额退款和重试通过；到期扫描与 USED 不回退有自动测试；内部 GET 与创建/取消预约在 Docker 栈验证 |
+| 05 | 指定车位预约与预付；未来时间窗查询 | pass：reservations、pay、cancel、consume、GET reservations/{id}、GET reservation-availability；space：内部只读车位列表 | reservation、reservation_prepayment | 04、09、10、11、15、16、19 | MySQL 8 路同窗预约仅一路成功；预约优惠、预付抵扣、差额退款和重试通过；到期扫描与 USED 不回退有自动测试；新增时间窗 H2 覆盖相邻/取消/超时待预付，Docker 网关脚本验证 14 位清单、重叠 409、相邻成功、取消后空档恢复 |
 | 06 | 月卡管理与自动扣费 | pass：monthly-passes、deductions、ledger | monthly_pass、monthly_ledger | 02、08、15、16 | MySQL 月卡支付响应超时后重试，800 分 DEBIT 恰一行、余额 19200 分且付款恰一笔 |
 | 07 | 在场车位反向查询 | access：GET /api/v1/access/locate | parking_session | 02、03、15、16 | MySQL 入场后可查；关闭后不可查有自动测试 |
 | 08 | 丢卡/超长停车特殊费 | access：exit-requests、GET exceptions；billing：createBill | parking_session、exit_intent、exit_exception、bill | 03、07、08、15、16 | 定价测试覆盖丢卡与超长；MySQL 49 小时丢卡出场产生两条独立异常快照，金额、费率版本与账单相符；同键重试仍为同一账单 |
