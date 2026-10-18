@@ -879,3 +879,48 @@ code {
   color: #aab2bf;
   line-height: 1.8;
 }
+
+.time-range-card {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid #315774;
+  border-radius: 14px;
+  background: radial-gradient(circle at 92% 0, #456f74 0, transparent 31%), linear-gradient(125deg, #1a304c, #25445d);
+  color: #f6f9fb;
+}
+.time-range-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.time-range-heading h3, .time-range-heading h4 { margin: 5px 0 0; font-size: 17px; font-weight: 650; }
+.time-range-kicker { display: inline-flex; align-items: center; gap: 6px; color: #cde8aa; font-size: 10px; letter-spacing: .1em; }
+.time-range-kicker .app-icon { width: 15px; height: 15px; }
+.time-range-duration { padding: 7px 11px; border-radius: 20px; background: #d9ef8d; color: #243c36; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.time-range-duration.invalid { background: #ffffff24; color: #e5edf1; }
+.time-range-fields { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); align-items: center; gap: 10px; }
+.time-range-field { display: grid; min-width: 0; gap: 8px; padding: 12px; border: 1px solid #ffffff32; border-radius: 10px; background: #ffffff10; color: #d8e4eb; font-size: 13px; }
+.time-range-field > span { display: flex; align-items: center; gap: 7px; }
+.time-range-field b { color: #cde8aa; font: 700 10px 'Segoe UI', sans-serif; }
+.time-range-field input[type='datetime-local'] { height: 43px; padding: 0 9px; border: 1px solid #d7e3e6; border-radius: 7px; background: #fff; color: #243c51; font-size: 14px; color-scheme: light; }
+.time-range-field input:focus-visible { outline: 3px solid #d9ef8d; outline-offset: 2px; }
+.time-range-connector { color: #bdd4d8; text-align: center; font-size: 18px; }
+.time-range-shortcuts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 15px; }
+.time-range-shortcuts > span { margin-right: 4px; color: #bfd0dc; font-size: 11px; }
+.time-range-shortcuts button { min-height: 31px; padding: 5px 10px; border: 1px solid #ffffff4a; border-radius: 18px; background: #ffffff12; color: #f5f9fb; font: inherit; font-size: 12px; cursor: pointer; transition: transform .16s ease, background-color .16s ease; }
+.time-range-shortcuts button:hover { transform: translateY(-2px); background: #ffffff2b; }
+.time-range-shortcuts button[aria-pressed='true'] { border-color: #d9ef8d; background: #d9ef8d; color: #243c36; font-weight: 700; }
+.time-range-shortcuts button:focus-visible { outline: 2px solid #d9ef8d; outline-offset: 2px; }
+.time-range-feedback { min-height: 18px; margin: 12px 0 0; color: #d6edae; font-size: 12px; }
+.time-range-feedback.invalid { color: #ffcdbe; }
+.time-range-card > .el-button, .time-range-card > .service-actions, .time-range-actions { margin-top: 15px; }
+.time-range-card .service-actions .el-button + .el-button { margin-left: 0; }
+.time-range-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.time-range-actions label { display: grid; min-width: 145px; gap: 6px; color: #d8e4eb; font-size: 11px; }
+.time-range-actions .el-select { width: 100%; }
+.stale-range-note { margin: 18px 0 0; padding: 12px 16px; border: 1px solid #e7d6b2; border-radius: 9px; background: #fff8eb; color: #866234; font-size: 12px; }
+.service-panel .time-range-fields { grid-template-columns: 1fr; }
+.service-panel .time-range-connector { transform: rotate(90deg); line-height: 1; }
+@media (max-width: 640px) {
+  .time-range-card { padding: 16px; }
+  .time-range-fields { grid-template-columns: 1fr; gap: 6px; }
+  .time-range-connector { transform: rotate(90deg); line-height: 1; }
+  .time-range-duration { font-size: 11px; }
+}

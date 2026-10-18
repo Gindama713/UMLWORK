@@ -1,6 +1,12 @@
-# Agent 交接记录（2026-10-17，当前可接手）
+# Agent 交接记录（2026-10-18，当前可接手）
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
+
+## 2026-10-18：三页时间范围体验优化
+
+- **范围与文件**：UC-05 预约、EX-02 费用试算、UC-10 运营报表共用 `frontend/src/components/TimeRangeCard.vue` 和 `timeRange.js`；三页页面、`useParkingWorkspace.js`、`workflows.css`、前端测试与 `docs/ui-design.md` 同步。快捷时长/历史区间只回填浏览器输入，不在前端计算业务费用或判断预约冲突。新增的前端范围提示不改变后端校验；HTTP 接口、状态、表、费率、服务依赖和 UML 均未变化。运行仍用现有网关与前端，未增加依赖。
+- **实测**：`cd frontend && npm test` 8 条全通过，`npm run build` 退出 0，`git diff --check` 退出 0。Vite 5173 经真实网关的预约空档查询返回 14 位；试算 4 小时返回 ¥18.00；近 7 天保存报表返回 71 条模拟入场。改动查询范围时，预约旧时间轴不再展示，报表明确标记为上次快照；试算输入改动后清旧金额。`docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build --no-deps frontend` 退出 0，仅重建前端；在 `http://127.0.0.1:18080/` 浏览器看到时间卡片与服务连接 5/5。
+- **接手边界**：前端构建仍提示 ECharts 562 kB 懒加载块大于 500 kB，未因本次交互增加图表依赖。本轮未做真机窄屏或动画帧率量测；截图 `target/local-runtime/time-range-qa.png` 是 agent 本地 QA，课程正式运行截图仍由负责人本人采集。原有三个未跟踪提示词文件保持不动；本轮不推送远端。
 
 ## 2026-10-17：UC-05 预约车位时间窗与空档展示
 

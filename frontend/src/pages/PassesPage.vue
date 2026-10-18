@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
+import TimeRangeCard from '../components/TimeRangeCard.vue'
 
 const props = defineProps({ workspace: { type: Object, required: true } })
 const {
@@ -7,6 +9,10 @@ const {
   money, dateTime, createReservation, payReservation, refreshReservation, cancelReservation,
   loadReservationAvailability, createPass, refreshPass,
 } = props.workspace
+
+const availabilityCurrent = computed(() => reservationAvailability.value &&
+  Date.parse(reserve.startTime) === Date.parse(reservationAvailability.value.from) &&
+  Date.parse(reserve.endTime) === Date.parse(reservationAvailability.value.to))
 
 function windowStyle(window) {
   const start = Date.parse(reservationAvailability.value.from)
@@ -30,13 +36,13 @@ function windowStyle(window) {
       <div class="service-form">
         <label>车牌号码<el-input v-model="reserve.plateNumber" aria-label="预约车牌号码" placeholder="例如 苏A12345" /></label>
         <label>预约车位<el-select v-model="reserve.spaceId" aria-label="预约车位" placeholder="选择车位"><el-option v-for="space in spaces.filter(s => s.type === 'RESERVATION')" :key="space.spaceId" :label="`${space.floor} · ${space.zone}区 · ${space.number}`" :value="space.spaceId" /></el-select></label>
-        <label>开始时间<input v-model="reserve.startTime" type="datetime-local" step="0.001" /></label>
-        <label>结束时间<input v-model="reserve.endTime" type="datetime-local" step="0.001" /></label>
       </div>
-      <div class="service-actions">
-        <el-button class="service-primary reservation-create" type="primary" :loading="busy" @click="createReservation">创建预约</el-button>
-        <el-button :loading="busy" @click="loadReservationAvailability">查看时段空档</el-button>
-      </div>
+      <TimeRangeCard v-model:start="reserve.startTime" v-model:end="reserve.endTime" title="安排预约时间" heading-level="h4" start-label="开始停车" end-label="结束停车" future v-slot="{ valid }">
+        <div class="service-actions">
+          <el-button class="service-primary reservation-create" type="primary" :loading="busy" :disabled="!valid || !reserve.spaceId || !reserve.plateNumber.trim()" @click="createReservation">创建预约</el-button>
+          <el-button :loading="busy" :disabled="!valid" @click="loadReservationAvailability">查看时段空档</el-button>
+        </div>
+      </TimeRangeCard>
 
       <div v-if="reservation" class="service-result">
         <div class="service-result-top"><span>预约凭证</span><el-tag :type="reservation.status === 'CONFIRMED' ? 'success' : reservation.status === 'PENDING_PAYMENT' ? 'warning' : 'info'">{{ label(reservation.status) }}</el-tag></div>
@@ -74,7 +80,8 @@ function windowStyle(window) {
     </section>
   </div>
 
-  <section v-if="reservationAvailability" class="service-panel reservation-timeline" aria-label="预约车位时间窗">
+  <p v-if="reservationAvailability && !availabilityCurrent" class="stale-range-note">预约时段已变更，请重新查看时段空档。</p>
+  <section v-if="reservationAvailability && availabilityCurrent" class="service-panel reservation-timeline" aria-label="预约车位时间窗">
     <div class="service-panel-heading"><span class="service-panel-icon"><AppIcon name="ticket" /></span><div><span class="section-kicker">RESERVATION TIMELINE</span><h3>预约车位时间窗</h3></div></div>
     <p class="service-panel-note">{{ dateTime(reservationAvailability.from) }} 至 {{ dateTime(reservationAvailability.to) }} · 浅色为空档，色块为已有预约。此处是查询快照；创建、支付或取消后请刷新，最终以创建预约时的冲突检查为准。</p>
     <div class="reservation-legend"><span>空档</span><span>待预付</span><span>已确认</span><span>已核销</span></div>

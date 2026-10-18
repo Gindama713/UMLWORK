@@ -1,5 +1,6 @@
 <script setup>
 import AppIcon from '../components/AppIcon.vue'
+import TimeRangeCard from '../components/TimeRangeCard.vue'
 
 // This page presents the shared workspace; business actions stay in the composable.
 const props = defineProps({ workspace: { type: Object, required: true } })
@@ -31,11 +32,9 @@ const {
 <template>
   <section class="panel estimate-panel">
     <div class="panel-heading"><div><span class="section-kicker">BEFORE YOU PARK</span><h2>停车费预估</h2></div><AppIcon name="clock" /></div>
-    <div class="estimate-fields">
-      <label class="stacked-field">预计入场<input v-model="estimateForm.entryTime" type="datetime-local" step="0.001" /></label>
-      <label class="stacked-field">预计离场<input v-model="estimateForm.exitTime" type="datetime-local" step="0.001" /></label>
-      <el-button :loading="busy" :disabled="!estimateForm.entryTime || !estimateForm.exitTime" @click="previewEstimate">计算预估</el-button>
-    </div>
+    <TimeRangeCard v-model:start="estimateForm.entryTime" v-model:end="estimateForm.exitTime" title="预计停留时间" start-label="预计入场" end-label="预计离场" v-slot="{ valid }">
+      <el-button type="primary" :loading="busy" :disabled="!valid" @click="previewEstimate">计算预估</el-button>
+    </TimeRangeCard>
     <div v-if="estimateResult" class="estimate-result">
       <div><span>普通停车基础费</span><strong>{{ money(estimateResult.amountDueCents) }}</strong><small>费率 {{ estimateResult.rateVersion }}</small></div>
       <ul><li v-for="(item, index) in estimateResult.feeItems" :key="index">{{ item.detail }} · {{ money(item.amountCents) }}</li></ul>

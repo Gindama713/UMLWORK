@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '../api/client.js'
 
@@ -125,6 +125,7 @@ export function useParkingWorkspace() {
   const invoice = reactive({ billId: '', invoiceTitle: '', taxNumber: '' })
   const estimateForm = reactive({ entryTime: '', exitTime: '' })
   const estimateResult = ref(null)
+  watch([() => estimateForm.entryTime, () => estimateForm.exitTime], () => { estimateResult.value = null })
   const recommendForm = reactive({ terminal: 'T1', type: 'NORMAL' })
   const recommendations = ref([])
   const analytics = reactive({ from: '', to: '', granularity: 'HOUR' })
@@ -465,11 +466,14 @@ export function useParkingWorkspace() {
   }
   async function previewEstimate() {
     await action(async () => {
-      estimateResult.value = await api('/api/v1/billing/parking-estimates', 'POST', {
-        entryTime: iso(estimateForm.entryTime),
-        exitTime: iso(estimateForm.exitTime),
+      const entryTime = estimateForm.entryTime
+      const exitTime = estimateForm.exitTime
+      const result = await api('/api/v1/billing/parking-estimates', 'POST', {
+        entryTime: iso(entryTime),
+        exitTime: iso(exitTime),
       })
-      return estimateResult.value
+      if (entryTime === estimateForm.entryTime && exitTime === estimateForm.exitTime) estimateResult.value = result
+      return result
     })
   }
   async function recommendSpaces() {
@@ -502,10 +506,10 @@ export function useParkingWorkspace() {
   }
   onMounted(async () => {
     const now = new Date()
-    estimateForm.entryTime = localInput(now)
-    estimateForm.exitTime = localInput(new Date(now.getTime() + 2 * 60 * 60 * 1000))
-    analytics.from = localInput(new Date(now.getTime() - 24 * 60 * 60 * 1000))
-    analytics.to = localInput(now)
+    estimateForm.entryTime = localInput(now).slice(0, 16)
+    estimateForm.exitTime = localInput(new Date(now.getTime() + 2 * 60 * 60 * 1000)).slice(0, 16)
+    analytics.from = localInput(new Date(now.getTime() - 24 * 60 * 60 * 1000)).slice(0, 16)
+    analytics.to = localInput(now).slice(0, 16)
     await refreshOverview()
   })
 
