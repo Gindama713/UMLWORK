@@ -18,6 +18,7 @@
 |---|---|---|---|
 | GET /api/v1/spaces?type=NORMAL | type 可选：NORMAL、ACCESSIBLE、CHARGING、RESERVATION | [{spaceId,type,floor,zone,number,status}] | 只读，不替代预约冲突检查 |
 | GET /api/v1/spaces/recommendations?terminal=T1&type=NORMAL | terminal 必填：T1/T2；type 必填：NORMAL/ACCESSIBLE/CHARGING | [{spaceId,type,floor,zone,number,status,walkingMinutes,reason,dataVersion}] | 只读，默认最多 3 条 AVAILABLE 候选（`parking.recommendation.max-results` 可配置）；步行分钟为演示估计，不预留资源；入场仍需原子占位，预约位不推荐 |
+| GET /internal/v1/spaces/recommendations?terminal=T1&type=NORMAL | 同公开推荐接口 | 同公开推荐接口 | 供 access-service 的可选出行建议读取 space 自有快照；不修改车位 |
 | GET /internal/v1/spaces?type=RESERVATION | type 必填；类型枚举同公开列表 | 同公开列表，包含 AVAILABLE、OCCUPIED、OUT_OF_SERVICE | pass-service 查询物理预约位及当前状态；未来时段冲突仍由 pass 自有库判断，不能改用仅返回 AVAILABLE 的接口 |
 | POST /api/v1/spaces | {type,floor,zone,number} | {spaceId,type,floor,zone,number,status} | 管理员演示创建物理车位，初始 AVAILABLE；编号唯一；CHARGING 同一事务创建配套充电桩 |
 | PATCH /api/v1/spaces/{spaceId}/service-status | {status} | 同上 | status 仅 AVAILABLE/OUT_OF_SERVICE；OCCUPIED 不可停用，保留历史而不物理删除 |
@@ -27,6 +28,7 @@
 | POST /internal/v1/spaces/{spaceId}/settlement | {parkingSessionId} | {parkingSessionId,chargingCents} | 出账前冻结本停车记录充电费用；必须仍占用此车位且无 ACTIVE 充电；有 ACTIVE 返回 409 STATE_CONFLICT；冻结后禁止新增充电，同 session 重试返回原快照 |
 | POST /api/v1/access/entries | {plateNumber,spaceType,reservationId?,entryTime?,preferredSpaceId?} | {parkingSessionId,plateNumber,spaceId,floor,zone,spaceNumber,entryTime,status,exitTime?,billId?,exceptionType?,operator?} | preferredSpaceId 仅用于非预约位的可选精确选择，须为当前可用且类型匹配的车位；竞争占位失败返回 SPACE_UNAVAILABLE，不悄悄换位。entryTime 可指定带偏移量的演示时刻，省略则取服务器当前时刻；预约位必须提供有效预约；同键并发入场由 access 自有库请求键行锁串行化，停车记录独立提交以支持故障恢复，重试返回同一记录；出场附加字段用于页面重开后恢复待结算工作台 |
 | POST /api/v1/access/plate-recognitions | multipart/form-data 的 image 文件，仅 JPEG/PNG，大小上限由服务配置 | {plateNumber?:string,source:"AI_CANDIDATE",model:string} | 可选图片识别；未识别到唯一车牌时 plateNumber=null。候选值须人工确认后另行调用原入场接口，本接口不占位、不建停车记录、不保存原图。功能未配置、模型故障或非法响应返回 503 DEPENDENCY_UNAVAILABLE；非法图片返回 400 INVALID_ARGUMENT |
+| POST /api/v1/access/travel-advice | {terminal:"T1"\|"T2",spaceType:"NORMAL"\|"ACCESSIBLE"\|"CHARGING",entryTime,exitTime,departureTime?,preference?}；三个时间均为带偏移量的 ISO 8601，entryTime < exitTime 且停车时长不超过 31 天，若有起飞时间则 entryTime < departureTime < exitTime；preference 可选 STANDARD/LUGGAGE/TIME_SENSITIVE，默认 STANDARD | {source:"AI_ADVISORY",model,terminal,spaceType,recommendations:[{spaceId,type,floor,zone,number,status,walkingMinutes,reason,dataVersion}],estimate:{parkingBaseCents,amountDueCents,rateVersion,feeItems},summary,tips:[string,string]} | EX-05 可选机场出行建议：access 通过 Feign 读取 space 当前可用候选和 billing 的普通停车费试算，再向模型发送最少的候选、演示步行时间、费用、费率版本及用户计划，不发送车牌或停车记录；AI 仅生成解释和提醒，不能改选车位、费用或状态。候选为空返回 409 SPACE_UNAVAILABLE；参数无效返回 400 INVALID_ARGUMENT；下游或 AI 不可用、响应非法返回 503 DEPENDENCY_UNAVAILABLE。查询不占位、不建账单；候选和费用均为快照，最终以入场占位和正式账单为准。起飞时间为用户输入，不代表实时航班数据。 |
 | GET /api/v1/access/locate?plateNumber=... | plateNumber 必填 | 同上 | 仅返回仍在场车辆；带回已冻结出场意图；billing 故障时 `EXIT_PENDING_PAYMENT` 的 billId 可暂为空，重试出账后再支付/释放 |
 | GET /internal/v1/access/sessions?from=...&to=... | 带偏移量的 from、to，左闭右开 | [{parkingSessionId,entryTime,exitTime?,status}] | 只给 analytics 统计已完成入场的记录（PARKED/EXIT_PENDING_PAYMENT/PAID_PENDING_RELEASE/CLOSED），排除 ENTERING/ENTRY_FAILED |
 
@@ -44,6 +46,7 @@
 | POST /api/v1/billing/bills/{billId}/payments | 同上 | 同上 | 供独立演示/前端；出场仍通过 access 协调 |
 | POST /api/v1/billing/bills/{billId}/invoice-requests | {invoiceTitle,taxNumber?} | {invoiceRequestId,billId,status} | 仅已付账单，模拟申请 |
 | POST /api/v1/billing/parking-estimates | {entryTime,exitTime} | {parkingBaseCents,amountDueCents,rateVersion,feeItems:[{name,amountCents,detail}]} | 只读普通停车基础费预估；复用现有费率引擎，不生成账单或支付。时间必须带偏移且 exitTime 晚于 entryTime；不含权益、充电及异常附加费 |
+| POST /internal/v1/billing/parking-estimates | 同公开试算接口 | 同公开试算接口 | 供 access-service 的可选出行建议读取 billing 计费快照；不生成账单或支付 |
 
 BillView = {billId,parkingSessionId,status,parkingBaseCents,discountCents,prepaidCents,prepaidRefundCents,parkingDueCents,chargingCents,exceptionCents,amountDueCents,rateVersion,feeItems:[{name,amountCents,detail}]}。prepaidCents 是本单实际抵扣额；prepaidRefundCents 是待退差额。金额不为负；优惠、预付先作用于停车基础费，充电和异常费不参与抵扣。月卡余额可支付整张折后账单；余额不足则整笔改为模拟支付。账单 status: UNPAID/PAID。账单创建时保存费率版本和明细快照。
 

@@ -6,7 +6,9 @@ package "access-service" {
   class AccessController {
     -service: AccessService
     -recognition: PlateRecognitionService
+    -travelAdvice: TravelAdviceService
     ~recognize(image: MultipartFile): Envelope<PlateCandidate>
+    ~travelAdvice(request: TravelAdviceRequest): Envelope<TravelAdvice>
     ~enter(request: EntryRequest, key: String): Envelope<SessionView>
     ~locate(plateNumber: String): Envelope<SessionView>
     ~requestExit(sessionId: String, request: ExitRequest, key: String): Envelope<ExitView>
@@ -33,6 +35,14 @@ package "access-service" {
     -timeout: Duration
     ~recognize(image: MultipartFile): PlateCandidate
   }
+  class TravelAdviceService {
+    -spaces: SpaceClient
+    -billing: BillingClient
+    -endpoint: URI
+    -model: String
+    -enabled: boolean
+    ~generate(input: TravelAdviceRequest): TravelAdvice
+  }
   class AccessRepository {
     -jdbc: JdbcTemplate
     -mapper: RowMapper<SessionRow>
@@ -46,6 +56,7 @@ package "access-service" {
   }
   AccessController "1" --> "1" AccessService : service
   AccessController "1" --> "1" PlateRecognitionService : recognition
+  AccessController "1" --> "1" TravelAdviceService : travelAdvice
   AccessService "1" --> "1" AccessRepository : repo
   note right of AccessService
     Feign 客户端字段保留在类中；

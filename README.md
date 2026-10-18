@@ -26,6 +26,8 @@
 
 运营报表页在生成并保存报表后可按需点击“生成 AI 解读”。`analytics-service` 仅向模型发送该报表的时间范围、粒度、总数和分时段计数，不发送车牌或停车记录；返回的文字标为 `AI_ADVISORY`，原始统计仍是事实依据。此功能默认关闭；需在未提交的 `.env` 或本机环境设置 `ANALYTICS_AI_ENABLED=true` 和 `DEEPSEEK_API_KEY`。模型不可用时原报表仍可查看。它是 UC-10 的可选扩展 EX-04，不影响报表数据或其他业务状态。
 
+车位资源页还提供 EX-05“机场出行助手”：选择航站楼、车位类型、停车时段，可选填计划起飞时间与出行侧重。`access-service` 通过内部 Feign 接口读取 `space-service` 的当前可用候选和 `billing-service` 的普通停车费试算，再将最少的事实快照交给 AI 生成文字建议；页面并列展示原始候选、演示步行分钟、整数分转换后的费用与费率版本。它默认关闭，需设置 `TRAVEL_ADVICE_ENABLED=true` 与 `DEEPSEEK_API_KEY`；模型 URL、名称、超时可通过 `TRAVEL_ADVICE_URL/MODEL/TIMEOUT_SECONDS` 覆盖。功能故障时原车位推荐和停车费试算仍可分别使用。该建议不占位、不建账单，不读取车牌或真实航班数据；入场与结算仍以原业务接口为准。
+
 预约与月卡页可先输入未来开始/结束时间，点击“查看时段空档”读取预约位时间轴；`pass-service` 将本服务的有效预约与 `space-service` 只读车位清单组合，不显示其他车主车牌或预约 ID。此图只表示查询时刻的空档，创建预约仍按原有 `[start,end)` 串行冲突规则裁决；当前占用的物理车位可以预约未来时段，停用车位不能预约。复测可运行 `pwsh -NoProfile -File scripts/smoke-reservation-availability.ps1`，脚本创建和取消两条未来演示预约，断言相邻不冲突、重叠返回 409、取消后空档恢复。
 
 如需让运营图表展示非零车流，在网关和五个业务服务启动后运行 `pwsh -NoProfile -File scripts/seed-demo-traffic.ps1 -IncludeActive`。默认通过正式 API 追加 24 条已完成停车，并确保编号 101～108 的固定演示车牌在场（已在场则跳过）；可用 `-ClosedCount 12 -ActiveCount 12` 调整数量（范围分别为 1～60、1～16）。脚本轮换可用普通车位，核对关闭状态、释放结果和车流增量；每次运行都会新增已完成记录，请只在演示环境按需执行。数据是模拟入场，不代表真实机场客流；它不直接写其他服务数据库，也不修改费率或支付规则。
@@ -94,10 +96,10 @@ Windows Docker Desktop 当前可直接运行本仓库 Compose；若本机 MySQL 
 - GitHub Actions 的 [`Verify`](.github/workflows/verify.yml) 在推送、PR 和手动触发时运行 Java 21 后端测试、Node 22 前端测试与构建；它使用 H2，不代替下面的真实 MySQL 与 Docker 联调。远端运行结果以 GitHub Actions 页面为准。
 - `.\mvnw.cmd clean package` 运行所有现有测试；测试使用 H2 的 MySQL 兼容模式检查服务各自的数据约束和主要分支，不替代 MySQL 联调。
 - `npm run build` 检查前端。
-- 最近一次 Java 21 全模块自动测试为 33 条、0 失败（2026-10-17；见 `docs/agent-handoff.md`）；其中新增种子容量与 12 辆车独立占位/释放测试。真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票，执行 `./scripts/smoke-extensions.ps1` 核对预估、推荐及精确占位冲突。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
+- 最近一次 Java 21 全模块自动测试为 37 条、0 失败（2026-10-18；见 `docs/agent-handoff.md`）；其中新增出行建议的输入、依赖、模型输出和空车位分支测试。真实服务已启动时，可用 PowerShell 7 执行 `./scripts/smoke-gateway.ps1` 检查充电→冻结费用→出账→支付→释放→发票，执行 `./scripts/smoke-extensions.ps1` 核对预估、推荐及精确占位冲突。脚本保留演示记录；网关地址可用 `-GatewayUrl` 覆盖。
 - 已验证的真实 MySQL 网关链路：普通停车 08:00–10:00 为 1000 分；预约九折减预付 500 分后应付 400 分；月卡停车费八折后余额自动扣 800 分；2 kWh 充电费 300 分并入账单；异常费用及日报表可复核。详见 [联调记录](docs/code-audit.md)。
 - 真实 MySQL 并发与断线恢复：`scripts/verify-mysql-concurrency.ps1` 覆盖并发占位、预约和支付；billing/space 下线与月卡支付超时的人工注入步骤、断言和实测结果见 [故障注入记录](docs/mysql-fault-tests.md)。
-- [模型源文件](models/README.md)是 20 份可编辑 PlantUML 草案，35 张渲染图位于 `models/rendered/`（30 张 UML、5 张 ER）；11 号分三张泳道图，15、16 号分别渲染五个服务的类图和 ER 图，17 号为服务级出场进程顺序图，18 号独立说明四项可选扩展，19 号为预约空档查询顺序图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
+- [模型源文件](models/README.md)是 20 份可编辑 PlantUML 草案，37 张渲染图位于 `models/rendered/`（32 张 UML、5 张 ER）；11 号分三张泳道图，15、16 号分别渲染五个服务的类图和 ER 图，17 号为服务级出场进程顺序图，18 号独立说明五项可选扩展，19 号为预约空档查询顺序图。报告里的图、代码、截图应持续同步。课程所需至少 8 张本人截图和带字幕录屏仍需完成。
 
 ## 协作约定
 

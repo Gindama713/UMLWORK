@@ -17,7 +17,6 @@ Vision -- EX01
 EX01 ..> UC02 : <<extend>>
 @enduml
 
-
 @startuml
 title EX-01 图片识别与人工确认顺序图（AI-辅助）
 actor 收费员
@@ -146,4 +145,68 @@ end
 deactivate Analytics
 GW --> UI : 展示建议或错误；原图表继续可用
 UI --> 运营人员 : 人工核对后再决策
+@enduml
+
+@startuml
+title EX-05 AI 机场出行建议可选用例（AI-辅助）
+left to right direction
+actor 车主
+actor "外部 AI 服务" as AI
+rectangle "机场智慧停车与出行服务平台" {
+  usecase "EX-03 查询可用车位" as EX03
+  usecase "EX-02 试算普通停车费" as EX02
+  usecase "EX-05 生成机场出行建议" as EX05
+}
+车主 -- EX05
+AI -- EX05
+EX05 ..> EX03 : <<include>>
+EX05 ..> EX02 : <<include>>
+@enduml
+
+@startuml
+title EX-05 出行建议服务级顺序图（AI-辅助）
+actor 车主
+participant "Vue 前端" as UI
+participant gateway as GW
+participant "access-service" as Access
+participant "space-service" as Space
+participant "billing-service" as Billing
+participant "DeepSeek API" as AI
+车主 -> UI : 选择航站楼、类型、停车时段和行程侧重
+UI -> GW : POST /access/travel-advice
+activate GW
+GW -> Access : 转发只读建议请求
+activate Access
+alt 输入无效
+  Access --> GW : 400 INVALID_ARGUMENT
+else AI 未启用
+  Access --> GW : 503 DEPENDENCY_UNAVAILABLE
+else 输入有效且 AI 可用
+  Access -> Space : GET /internal/v1/spaces/recommendations
+  activate Space
+  Space --> Access : 当前可用候选与演示步行时间
+  deactivate Space
+  alt 无候选
+    Access --> GW : 409 SPACE_UNAVAILABLE
+  else 有候选
+    Access -> Billing : POST /internal/v1/billing/parking-estimates
+    activate Billing
+    Billing --> Access : 普通停车费快照与费率版本
+    deactivate Billing
+    alt 依赖或模型故障
+      Access --> GW : 503 DEPENDENCY_UNAVAILABLE
+    else 依赖可用
+      Access -> AI : HTTPS 最少行程与事实快照
+      activate AI
+      AI --> Access : JSON 摘要与两条提醒
+      deactivate AI
+      Access --> GW : AI_ADVISORY + 原始车位/费用快照
+    end
+  end
+end
+deactivate Access
+GW --> UI : 展示建议或错误
+deactivate GW
+UI --> 车主 : 人工核对后再按原流程入场
+note over Access,Billing : 不占位、不建账单；AI 不决定车位、价格或航班状态。
 @enduml

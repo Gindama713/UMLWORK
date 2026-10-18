@@ -48,6 +48,13 @@ plate-recognition:
   max-bytes: ${PLATE_RECOGNITION_MAX_BYTES:3145728}
   timeout-seconds: ${PLATE_RECOGNITION_TIMEOUT_SECONDS:15}
 
+travel-advice:
+  enabled: ${TRAVEL_ADVICE_ENABLED:false}
+  url: ${TRAVEL_ADVICE_URL:https://api.deepseek.com/chat/completions}
+  model: ${TRAVEL_ADVICE_MODEL:deepseek-flash}
+  api-key: ${DEEPSEEK_API_KEY:}
+  timeout-seconds: ${TRAVEL_ADVICE_TIMEOUT_SECONDS:15}
+
 management:
   endpoints:
     web:

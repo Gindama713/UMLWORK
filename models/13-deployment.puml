@@ -48,6 +48,6 @@ billing --> dbBilling : JDBC / 专属账号
 pass --> dbPass : JDBC / 专属账号
 analytics --> dbAnalytics : JDBC / 专属账号
 analytics ..> redis : 已保存报表缓存；故障回源 MySQL
-access ..> vision : 启用图片识别时 HTTPS；候选需人工确认
+access ..> vision : 可选图片识别/出行建议 HTTPS；不写权威状态
 analytics ..> vision : 启用报表解读时 HTTPS；仅汇总数据
 @enduml

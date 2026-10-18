@@ -33,7 +33,7 @@ public class SpaceController {
         return ApiResponse.ok(operations.spaces(type, false).stream().map(SpaceSummary::from).toList());
     }
 
-    @GetMapping("/api/v1/spaces/recommendations")
+    @GetMapping({"/api/v1/spaces/recommendations", "/internal/v1/spaces/recommendations"})
     public ApiResponse<List<SpaceOperations.RecommendationView>> recommendations(
             @RequestParam String terminal, @RequestParam String type) {
         return ApiResponse.ok(operations.recommendations(terminal, type));

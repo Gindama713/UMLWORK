@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import SpaceMap from '../components/SpaceMap.vue'
+import TimeRangeCard from '../components/TimeRangeCard.vue'
 
 // This page presents the shared workspace; business actions stay in the composable.
 const props = defineProps({ workspace: { type: Object, required: true } })
@@ -15,12 +16,18 @@ const {
   recommendForm,
   recommendations,
   recommendSpaces,
+  estimateForm,
+  travelPlan,
+  travelAdvice,
+  generateTravelAdvice,
+  money,
   action,
   loadResources,
   createSpace,
   setSpaceStatus,
 } = props.workspace
 const recommendationHighlight = ref('')
+watch([() => recommendForm.terminal, () => recommendForm.type], () => { recommendationHighlight.value = '' })
 
 async function showRecommendations() {
   await recommendSpaces()
@@ -57,6 +64,37 @@ function useRecommendation(item) {
     </div>
     <p v-else class="form-note">查询后显示当前可用车位。</p>
     <p class="form-note">步行时间为课程演示估计，不代表真实导航；推荐不等于预约，最终是否可用以入场原子占位结果为准。</p>
+  </section>
+  <section class="panel travel-advice-panel">
+    <div class="panel-heading">
+      <div><span class="section-kicker">AI / JOURNEY</span><h2>机场出行助手</h2></div>
+      <span class="small-badge">可选建议</span>
+    </div>
+    <p class="form-note">结合上方航站楼与车位类型、预计停车时段，查看可用车位和普通停车费快照。无需填写车牌或航班号。</p>
+    <TimeRangeCard v-model:start="estimateForm.entryTime" v-model:end="estimateForm.exitTime"
+      title="预计停车时段" start-label="预计入场" end-label="预计取车" :max-days="31" v-slot="{ valid }">
+      <div class="travel-advice-inputs">
+        <label class="stacked-field">计划起飞时间（选填）<input v-model="travelPlan.departureTime" type="datetime-local" /></label>
+        <label class="stacked-field">出行侧重
+          <el-select v-model="travelPlan.preference" aria-label="出行侧重">
+            <el-option label="一般出行" value="STANDARD" />
+            <el-option label="携带行李" value="LUGGAGE" />
+            <el-option label="行程紧凑" value="TIME_SENSITIVE" />
+          </el-select>
+        </label>
+      </div>
+      <el-button type="primary" :loading="busy" :disabled="!valid || busy" @click="generateTravelAdvice">生成出行建议</el-button>
+    </TimeRangeCard>
+    <div v-if="travelAdvice" class="travel-advice-result" aria-live="polite">
+      <div class="travel-advice-facts">
+        <div><small>当前可用候选</small><strong>{{ travelAdvice.recommendations.length }} 个</strong></div>
+        <div><small>首位候选演示步行</small><strong>{{ travelAdvice.recommendations[0]?.walkingMinutes }} 分钟</strong></div>
+        <div><small>普通停车预估</small><strong>{{ money(travelAdvice.estimate.amountDueCents) }}</strong></div>
+      </div>
+      <p class="travel-advice-summary">{{ travelAdvice.summary }}</p>
+      <ul><li v-for="(tip, index) in travelAdvice.tips" :key="index">{{ tip }}</li></ul>
+      <p class="form-note">{{ travelAdvice.model }} · AI 建议；费率 {{ travelAdvice.estimate.rateVersion }}。步行时间为演示估计；若填写了起飞时间，它仅来自您的输入。车位实时可用性与实际账单以正式业务操作为准。</p>
+    </div>
   </section>
   <div class="toolbar">
     <el-button @click="action(loadResources)">刷新车位</el-button>

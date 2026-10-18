@@ -2,6 +2,14 @@
 
 > 本文件用于中途接手。先读根目录 `AGENTS.md`、`docs/decisions.md`、`docs/api-contract.md` 和两份课程原件。业务语义与接口由这些文件约束；本记录只说明当前工作状态。请勿把未验证事项写成已完成。
 
+## 2026-10-18：EX-05 机场出行助手（UC-01/03 的只读扩展）
+
+- **实现与文件**：先更新 `docs/api-contract.md`，再于 `access-service` 新增 `TravelAdviceService`、请求/响应 DTO、Feign 调用及 `POST /api/v1/access/travel-advice`；`space-service` 和 `billing-service` 各给原只读推荐/试算增加 `/internal/v1` 别名。车位资源页新增行程输入、事实卡片和 AI 文字建议；`frontend/src/composables/useParkingWorkspace.js` 在输入变化后清除过期结果。配置见 `access-service/application.yml`、`docker-compose.yml`、`.env.example`；README、路线图、需求映射、报告图映射和模型 13/15/18 同步。没有新增依赖、微服务、表、状态或金额规则；`space-service` 仍决定候选，`billing-service` 仍以整数分决定试算，access 仅编排只读调用。模型只生成摘要与两条提醒，不决定车位、价格或航班状态。
+- **接口与运行**：输入 T1/T2、普通/无障碍/充电类型、最长 31 天的预计停车时段，可选计划起飞时间与侧重。候选为空为 409 `SPACE_UNAVAILABLE`，无效参数为 400 `INVALID_ARGUMENT`，下游或模型失败为 503 `DEPENDENCY_UNAVAILABLE`；不占位、不建账单。默认 `TRAVEL_ADVICE_ENABLED=false`，演示需在未提交环境配置 `TRAVEL_ADVICE_ENABLED=true` 与 `DEEPSEEK_API_KEY`，然后构建 access JAR 并重建 access 容器；前端构建产物由原 nginx 容器托管。原独立推荐、费用试算和 UC-01～UC-10 的写流程保持原接口。
+- **自动验证**：Java 21 `./mvnw.cmd -q test` 退出 0，10 份 Surefire XML 合计 **37 条，0 失败/错误**；新测试覆盖合法模型 JSON、非法输出、非法时间、开关关闭、空候选与依赖故障，空候选时断言不调用 billing。`cd frontend && npm test` **8/8**；`npm run build` 退出 0（仍有 ECharts 562.32 kB 懒加载块体积提示）。第一次沙箱内构建被 esbuild 的 `spawn EPERM` 阻断，授权运行后同一命令成功。PlantUML 1.2024.3 的 18 号源 `-checkonly`、PNG 渲染退出 0；打开 `18-optional-extensions_007.png` 检查可读。图 18 的空候选分支已按实际代码顺序改为在 billing 前判断。
+- **真实 Docker 与网关**：最新版 access JAR 以 `docker compose -f docker-compose.yml -f target/local-runtime/docker-windows.override.yml up -d --build --no-deps access-service` 重建；网关 `/actuator/health=UP`。经网关传入非法起飞时间返回 HTTP 400；正常输入返回 `code=OK`、`source=AI_ADVISORY`、3 个候选、`amountDueCents=7600`、2 条提醒，费用来自 billing 试算而非 AI。`pwsh -NoProfile -File scripts/smoke-gateway.ps1` 退出 0，原主链 12 项 PASS；会话 `74135f08-485f-4c5a-ba5e-385f13b7a775` 的账单 `36ec2efb-57f8-4533-909e-a057520d3963` 为停车 1000 分 + 充电 300 分 = 1300 分。浏览器在车位页实际生成过建议，显示 3 个候选、首位演示步行 6 分钟、普通停车预估 1000 分、摘要及两条提醒；该页面验收使用另一组两小时时段。
+- **边界与交接**：尚未用真实航班数据或长期样本评估文字建议准确性；步行时间仅为课程演示估计。模型和候选快照不保证车位最终可用，正式入场仍依赖原子占位。课程正式截图与录屏仍由负责人本人采集。本轮未推送远端；原有三个未跟踪提示词文件未动。
+
 ## 2026-10-18：三页时间范围体验优化
 
 - **范围与文件**：UC-05 预约、EX-02 费用试算、UC-10 运营报表共用 `frontend/src/components/TimeRangeCard.vue` 和 `timeRange.js`；三页页面、`useParkingWorkspace.js`、`workflows.css`、前端测试与 `docs/ui-design.md` 同步。快捷时长/历史区间只回填浏览器输入，不在前端计算业务费用或判断预约冲突。新增的前端范围提示不改变后端校验；HTTP 接口、状态、表、费率、服务依赖和 UML 均未变化。运行仍用现有网关与前端，未增加依赖。

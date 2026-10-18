@@ -135,6 +135,7 @@ services:
       BILLING_SERVICE_URL: "http://billing-service:18083"
       PASS_SERVICE_URL: "http://pass-service:18084"
       PLATE_RECOGNITION_ENABLED: ${PLATE_RECOGNITION_ENABLED:-false}
+      TRAVEL_ADVICE_ENABLED: ${TRAVEL_ADVICE_ENABLED:-false}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     depends_on:
       mysql: {condition: service_healthy}

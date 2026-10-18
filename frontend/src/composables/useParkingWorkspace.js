@@ -128,6 +128,14 @@ export function useParkingWorkspace() {
   watch([() => estimateForm.entryTime, () => estimateForm.exitTime], () => { estimateResult.value = null })
   const recommendForm = reactive({ terminal: 'T1', type: 'NORMAL' })
   const recommendations = ref([])
+  const travelPlan = reactive({ departureTime: '', preference: 'STANDARD' })
+  const travelAdvice = ref(null)
+  watch([() => recommendForm.terminal, () => recommendForm.type], () => {
+    recommendations.value = []
+    travelAdvice.value = null
+  })
+  watch([() => estimateForm.entryTime, () => estimateForm.exitTime,
+    () => travelPlan.departureTime, () => travelPlan.preference], () => { travelAdvice.value = null })
   const analytics = reactive({ from: '', to: '', granularity: 'HOUR' })
   const output = ref('操作结果会显示在这里。')
 
@@ -480,7 +488,31 @@ export function useParkingWorkspace() {
     await action(async () => {
       const params = new URLSearchParams(recommendForm)
       recommendations.value = await api(`/api/v1/spaces/recommendations?${params}`)
+      travelAdvice.value = null
       return recommendations.value
+    })
+  }
+  async function generateTravelAdvice() {
+    travelAdvice.value = null
+    await action(async () => {
+      const input = {
+        terminal: recommendForm.terminal,
+        spaceType: recommendForm.type,
+        entryTime: iso(estimateForm.entryTime),
+        exitTime: iso(estimateForm.exitTime),
+        departureTime: iso(travelPlan.departureTime),
+        preference: travelPlan.preference,
+      }
+      const result = await api('/api/v1/access/travel-advice', 'POST', input)
+      if (input.terminal === recommendForm.terminal && input.spaceType === recommendForm.type
+          && input.entryTime === iso(estimateForm.entryTime)
+          && input.exitTime === iso(estimateForm.exitTime)
+          && input.departureTime === iso(travelPlan.departureTime)
+          && input.preference === travelPlan.preference) {
+        travelAdvice.value = result
+        recommendations.value = result.recommendations
+      }
+      return result
     })
   }
   async function traffic() {
@@ -560,6 +592,8 @@ export function useParkingWorkspace() {
     estimateResult,
     recommendForm,
     recommendations,
+    travelPlan,
+    travelAdvice,
     analytics,
     output,
     money,
@@ -589,6 +623,7 @@ export function useParkingWorkspace() {
     applyInvoice,
     previewEstimate,
     recommendSpaces,
+    generateTravelAdvice,
     traffic,
     explainTraffic,
   }

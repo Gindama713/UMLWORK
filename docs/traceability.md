@@ -1,6 +1,6 @@
 # 需求—模型—代码—测试映射（【AI-辅助】）
 
-更新于 2026-10-17。下表“已验证”含自动测试、本机真实 MySQL 顺序联调、Nacos 服务发现、Redis 报表缓存及有记录的并发/断线注入；逐项证据见 [联调记录](code-audit.md)、[故障注入记录](mysql-fault-tests.md)和[交接记录](agent-handoff.md)。当前源码本机通过 33 条后端测试与 5 条前端测试；Windows Docker 新增接口与原网关烟测证据见交接记录，2026-10-13 的充电恢复接口和 2026-10-14 的同键并发入场事务仍未作为专项场景在 Docker 实测。烟测只覆盖其中部分用例，其余沿用表内对应证据。Nacos 控制台截图和课程要求的本人截图尚未完成。报告图号由姜苏豪排版时填写。
+更新于 2026-10-18。下表“已验证”含自动测试、本机真实 MySQL 顺序联调、Nacos 服务发现、Redis 报表缓存及有记录的并发/断线注入；逐项证据见 [联调记录](code-audit.md)、[故障注入记录](mysql-fault-tests.md)和[交接记录](agent-handoff.md)。当前源码本机通过 37 条后端测试与 8 条前端测试；Windows Docker 新增接口与原网关烟测证据见交接记录，2026-10-13 的充电恢复接口和 2026-10-14 的同键并发入场事务仍未作为专项场景在 Docker 实测。烟测只覆盖其中部分用例，其余沿用表内对应证据。Nacos 控制台截图和课程要求的本人截图尚未完成。报告图号由姜苏豪排版时填写。
 
 | UC | 需求结果 | 权威服务/接口 | 主要表 | 可编辑模型源 | 当前验证 |
 |---|---|---|---|---|---|
@@ -23,5 +23,6 @@
 | EX-02 | 普通停车费只读预估 | billing：POST /api/v1/billing/parking-estimates | 不写 bill/payment | 15、18 | H2 断言 1000 分且两表记录数不变；Docker 网关同输入返回 1000 分和费率版本；浏览器显示分日明细 |
 | EX-03 | 按航站楼、类型推荐；指定车位入场仍安全占位 | space：GET /api/v1/spaces/recommendations；access：POST /api/v1/access/entries(preferredSpaceId) | space 自有 zone_walk_time、parking_space；access 自有 parking_session | 13、15、16、18 | H2 断言筛选与占用排除、推荐竞争不改派；Docker 网关推荐 A-003、精确入场、同键重试同会话、第二辆指定已占位返回 409，原车完成出场；浏览器推荐卡及预填入口可见 |
 | EX-04 | 已保存车流报表的 AI 辅助解读，原统计不变 | analytics：POST /api/v1/analytics/traffic-reports/{id}/ai-insight | 无新表；只读 traffic_report、traffic_bucket；Redis 可选读缓存 | 13、15、18 | 假提供方测试验证聚合数据、合法与异常响应；真实 Docker 网关返回 AI_ADVISORY 和两条建议；浏览器在 5 条入场报表上显示建议。未评估建议准确率 |
+| EX-05 | 可选机场出行建议，将真实车位候选、试算快照与 AI 文字并列呈现 | access：POST /api/v1/access/travel-advice；space、billing：对应 /internal/v1 只读接口 | 无新表；space 与 billing 各自读取自有数据 | 13、15、18 | access 假提供方测试覆盖成功/非法输入/空车位/依赖与非法模型响应；Docker 网关实测 AI_ADVISORY、3 个候选、7600 分与费率版本，页面同一接口显示 3 个候选和 1000 分（另一次两小时输入）。未验证建议长期正确性或真实航班信息 |
 
 图号对应 models/ 下文件名前缀。测试 XML 位于各模块 target/surefire-reports（构建产物，不提交）。运行截图必须由负责人在本人机器上实际打开系统采集。发现图、字段或数字不一致时，先核对权威服务与业务决策，再同步修订本表。

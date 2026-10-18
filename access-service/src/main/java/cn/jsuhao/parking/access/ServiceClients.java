@@ -17,6 +17,10 @@ final class ServiceClients {
 
 @FeignClient(name = "space-service", url = "${clients.space.url:}")
 interface SpaceClient {
+    @GetMapping("/internal/v1/spaces/recommendations")
+    Envelope<List<SpaceRecommendation>> recommendations(@RequestParam("terminal") String terminal,
+            @RequestParam("type") String type);
+
     @GetMapping("/internal/v1/spaces/available")
     Envelope<List<SpaceView>> available(@RequestParam("type") String type);
 
@@ -35,6 +39,9 @@ interface SpaceClient {
 
 @FeignClient(name = "billing-service", url = "${clients.billing.url:}")
 interface BillingClient {
+    @PostMapping("/internal/v1/billing/parking-estimates")
+    Envelope<ParkingEstimate> estimate(@RequestBody TravelEstimateRequest body);
+
     @PostMapping("/internal/v1/billing/bills")
     Envelope<BillView> createBill(@RequestHeader("Idempotency-Key") String key,
             @RequestBody BillRequest body);
@@ -46,6 +53,8 @@ interface BillingClient {
     Envelope<PaymentView> pay(@PathVariable("billId") String billId,
             @RequestHeader("Idempotency-Key") String key, @RequestBody PaymentRequest body);
 }
+
+record TravelEstimateRequest(java.time.OffsetDateTime entryTime, java.time.OffsetDateTime exitTime) {}
 
 @FeignClient(name = "pass-service", url = "${clients.pass.url:}")
 interface PassClient {

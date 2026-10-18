@@ -16,7 +16,7 @@ class BillingController {
 
     BillingController(BillingService billing) { this.billing = billing; }
 
-    @PostMapping("/api/v1/billing/parking-estimates")
+    @PostMapping({"/api/v1/billing/parking-estimates", "/internal/v1/billing/parking-estimates"})
     ApiResponse<ParkingEstimate> estimate(@RequestBody EstimateRequest request, HttpServletRequest http) {
         return ApiResponse.ok(billing.estimate(request), http);
     }

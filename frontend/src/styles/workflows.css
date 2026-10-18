@@ -924,3 +924,61 @@ code {
   .time-range-connector { transform: rotate(90deg); line-height: 1; }
   .time-range-duration { font-size: 11px; }
 }
+.travel-advice-panel {
+  margin-top: 22px;
+}
+
+.travel-advice-panel > .form-note {
+  max-width: 780px;
+}
+
+.travel-advice-panel .time-range-card {
+  margin-top: 18px;
+}
+
+.travel-advice-inputs,
+.travel-advice-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.travel-advice-inputs {
+  margin: 0 0 18px;
+}
+
+.travel-advice-inputs .stacked-field {
+  margin-top: 0;
+}
+
+.travel-advice-result {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid #dce6d8;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #f5fae9, #fff 65%);
+  animation: result-enter 280ms ease-out;
+}
+
+.travel-advice-facts > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.travel-advice-facts small { color: #667889; }
+.travel-advice-facts strong { font-size: 19px; color: #203349; }
+.travel-advice-summary { font-size: 16px; font-weight: 650; color: #203349; }
+.travel-advice-result li { margin: 8px 0; color: #4f6072; }
+.travel-advice-result > .form-note { font-size: 12px; line-height: 1.55; }
+
+@keyframes result-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel-advice-result { animation: none; }
+}

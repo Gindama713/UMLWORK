@@ -50,6 +50,15 @@ final class ApiModels {
                         boolean spaceReleased) {}
     record TrafficSession(String parkingSessionId, OffsetDateTime entryTime,
                           OffsetDateTime exitTime, String status) {}
+    record TravelAdviceRequest(String terminal, String spaceType, OffsetDateTime entryTime,
+                               OffsetDateTime exitTime, OffsetDateTime departureTime, String preference) {}
+    record SpaceRecommendation(String spaceId, String type, String floor, String zone, String number,
+                               String status, int walkingMinutes, String reason, String dataVersion) {}
+    record ParkingEstimate(long parkingBaseCents, long amountDueCents, String rateVersion,
+                           List<FeeItem> feeItems) {}
+    record TravelAdvice(String source, String model, String terminal, String spaceType,
+                        List<SpaceRecommendation> recommendations, ParkingEstimate estimate,
+                        String summary, List<String> tips) {}
 
     static final class ApiFailure extends RuntimeException {
         private final String code;

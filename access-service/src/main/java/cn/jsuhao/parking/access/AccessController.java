@@ -33,15 +33,22 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 class AccessController {
     private final AccessService service;
     private final PlateRecognitionService recognition;
+    private final TravelAdviceService travelAdvice;
 
-    AccessController(AccessService service, PlateRecognitionService recognition) {
+    AccessController(AccessService service, PlateRecognitionService recognition, TravelAdviceService travelAdvice) {
         this.service = service;
         this.recognition = recognition;
+        this.travelAdvice = travelAdvice;
     }
 
     @PostMapping("/api/v1/access/plate-recognitions")
     Envelope<PlateRecognitionService.PlateCandidate> recognize(@RequestPart("image") MultipartFile image) {
         return Envelope.ok(recognition.recognize(image));
+    }
+
+    @PostMapping("/api/v1/access/travel-advice")
+    Envelope<TravelAdvice> travelAdvice(@RequestBody TravelAdviceRequest request) {
+        return Envelope.ok(travelAdvice.generate(request));
     }
 
     @PostMapping("/api/v1/access/entries")
